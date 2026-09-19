@@ -16,6 +16,13 @@ type Product struct {
 	Quantity int     `json:"quantity"`
 }
 
+type CreateProductRequest struct {
+	Name     string  `json:"name"`
+	SKU      string  `json:"sku"`
+	Price    float64 `json:"price"`
+	Quantity int     `json:"quantity"`
+}
+
 var products = []Product{
 	{
 		ID:       1,
@@ -105,35 +112,41 @@ func getProducts(w http.ResponseWriter, r *http.Request) {
 }
 
 func createProduct(w http.ResponseWriter, r *http.Request) {
-	var product Product
+	var requestBody CreateProductRequest
 
-	err := json.NewDecoder(r.Body).Decode(&product)
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if product.Name == "" {
+	if requestBody.Name == "" {
 		http.Error(w, "Product name is required", http.StatusBadRequest)
 		return
 	}
 
-	if product.SKU == "" {
+	if requestBody.SKU == "" {
 		http.Error(w, "Product SKU is required", http.StatusBadRequest)
 		return
 	}
 
-	if product.Price <= 0 {
+	if requestBody.Price <= 0 {
 		http.Error(w, "Product price must be greater than 0", http.StatusBadRequest)
 		return
 	}
 
-	if product.Quantity < 0 {
+	if requestBody.Quantity < 0 {
 		http.Error(w, "Product quantity cannot be negative", http.StatusBadRequest)
 		return
 	}
 
-	product.ID = len(products) + 1
+	product := Product{
+		ID:       len(products) + 1,
+		Name:     requestBody.Name,
+		SKU:      requestBody.SKU,
+		Price:    requestBody.Price,
+		Quantity: requestBody.Quantity,
+	}
 
 	products = append(products, product)
 
