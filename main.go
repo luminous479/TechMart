@@ -179,8 +179,21 @@ func updateProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteProduct(w http.ResponseWriter, r *http.Request) {
+	idString := r.PathValue("id")
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		return
+	}
 
-	id := r.PathValue("id")
+	for i, product := range products {
+		if product.Id == id {
+			products = append(products[:i], products[i+1:]...)
 
-	fmt.Fprintln(w, "DELETE: Delete product ID:", id)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+	}
+
+	http.Error(w, "Product not found", http.StatusNotFound)
 }
