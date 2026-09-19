@@ -3,8 +3,41 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
+type Product struct{
+	Id int
+	Name string
+	SKU string
+	Price float64
+	Quantity int
+
+}
+
+var products = []Product{
+    {
+		Id : 1,
+		Name :"Logitech Keyboard",
+		SKU : "KB-001",
+		Price : 45,
+		Quantity : 50,
+	},
+	{
+		Id:       2,
+		Name:     "Dell Monitor",
+		SKU:      "MN-001",
+		Price:    220,
+		Quantity: 20,
+	},
+	{
+		Id:       3,
+		Name:     "HP Mouse",
+		SKU:      "MS-001",
+		Price:    25,
+		Quantity: 100,
+	},
+}
 func main() {
 
 	mux := http.NewServeMux()
@@ -27,6 +60,21 @@ func main() {
 func getProducts(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintln(w, "GET: All products")
+
+	for _, product := range products {
+		
+		fmt.Fprintf(
+			w,
+			"ID: %d | Name: %s | SKU: %s | Price: $%.2f | Quantity: %d\n",
+			product.Id,
+			product.Name,
+			product.SKU,
+			product.Price,
+			product.Quantity,
+		)
+		
+
+	}
 }
 
 func createProduct(w http.ResponseWriter, r *http.Request) {
@@ -36,9 +84,7 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 
 func getProduct(w http.ResponseWriter, r *http.Request) {
 
-	id := r.PathValue("id")
 
-	fmt.Fprintln(w, "GET: Product ID:", id)
 }
 
 func updateProduct(w http.ResponseWriter, r *http.Request) {
