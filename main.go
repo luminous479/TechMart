@@ -84,6 +84,34 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 
 func getProduct(w http.ResponseWriter, r *http.Request) {
 
+	id, err := strconv.Atoi(r.PathValue("id"))
+
+	if err != nil{
+		http.Error(w,"Invalid Product Id ",http.StatusBadRequest)
+		return
+	}
+	
+	for _, product := range products {
+ 
+		if product.Id == id {
+
+		fmt.Fprintf(
+			w,
+			"ID: %d | Name: %s | SKU: %s | Price: $%.2f | Quantity: %d\n",
+			product.Id,
+			product.Name,
+			product.SKU,
+			product.Price,
+			product.Quantity,
+		)
+		return 
+		}
+		
+
+
+	}
+
+	http.Error(w, "Product not found", http.StatusNotFound)
 
 }
 
