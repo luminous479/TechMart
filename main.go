@@ -1,27 +1,27 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 )
 
-type Product struct{
-	Id int
-	Name string
-	SKU string
-	Price float64
+type Product struct {
+	Id       int
+	Name     string
+	SKU      string
+	Price    float64
 	Quantity int
-
 }
 
 var products = []Product{
-    {
-		Id : 1,
-		Name :"Logitech Keyboard",
-		SKU : "KB-001",
-		Price : 45,
-		Quantity : 50,
+	{
+		Id:       1,
+		Name:     "Logitech Keyboard",
+		SKU:      "KB-001",
+		Price:    45,
+		Quantity: 50,
 	},
 	{
 		Id:       2,
@@ -38,6 +38,7 @@ var products = []Product{
 		Quantity: 100,
 	},
 }
+
 func main() {
 
 	mux := http.NewServeMux()
@@ -62,7 +63,7 @@ func getProducts(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "GET: All products")
 
 	for _, product := range products {
-		
+
 		fmt.Fprintf(
 			w,
 			"ID: %d | Name: %s | SKU: %s | Price: $%.2f | Quantity: %d\n",
@@ -72,42 +73,71 @@ func getProducts(w http.ResponseWriter, r *http.Request) {
 			product.Price,
 			product.Quantity,
 		)
-		
 
 	}
 }
 
 func createProduct(w http.ResponseWriter, r *http.Request) {
 
-	fmt.Fprintln(w, "POST: Create a product")
+	var product Product
+
+	err := json.NewDecoder(r.Body).Decode(product)
+
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadGateway)
+	}
+	if product.Name == "" {
+		http.Error(w, "Product name is required", http.StatusBadRequest)
+		return
+	}
+
+	if product.SKU == "" {
+		http.Error(w, "Product SKU is required", http.StatusBadRequest)
+		return
+	}
+
+	if product.Price <= 0 {
+		http.Error(w, "Product price must be greater than 0", http.StatusBadRequest)
+		return
+	}
+
+	if product.Quantity < 0 {
+		http.Error(w, "Product quantity cannot be negative", http.StatusBadRequest)
+		return
+	}
+	product.Id = len(products) + 1
+
+	products = append(products, product)
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(product)
+
 }
 
 func getProduct(w http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.Atoi(r.PathValue("id"))
 
-	if err != nil{
-		http.Error(w,"Invalid Product Id ",http.StatusBadRequest)
+	if err != nil {
+		http.Error(w, "Invalid Product Id ", http.StatusBadRequest)
 		return
 	}
-	
+
 	for _, product := range products {
- 
+
 		if product.Id == id {
 
-		fmt.Fprintf(
-			w,
-			"ID: %d | Name: %s | SKU: %s | Price: $%.2f | Quantity: %d\n",
-			product.Id,
-			product.Name,
-			product.SKU,
-			product.Price,
-			product.Quantity,
-		)
-		return 
+			fmt.Fprintf(
+				w,
+				"ID: %d | Name: %s | SKU: %s | Price: $%.2f | Quantity: %d\n",
+				product.Id,
+				product.Name,
+				product.SKU,
+				product.Price,
+				product.Quantity,
+			)
+			return
 		}
-		
-
 
 	}
 
