@@ -22,6 +22,12 @@ type CreateProductRequest struct {
 	Price    float64 `json:"price"`
 	Quantity int     `json:"quantity"`
 }
+type UpdateProductRequest struct {
+	Name     string  `json:"name"`
+	SKU      string  `json:"sku"`
+	Price    float64 `json:"price"`
+	Quantity int     `json:"quantity"`
+}
 
 var products = []Product{
 	{
@@ -191,43 +197,50 @@ func updateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var updatedProduct Product
+	var requestBody UpdateProductRequest
 
-	err = json.NewDecoder(r.Body).Decode(&updatedProduct)
+	err = json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if updatedProduct.Name == "" {
+	if requestBody.Name == "" {
 		http.Error(w, "Product name is required", http.StatusBadRequest)
 		return
 	}
 
-	if updatedProduct.SKU == "" {
+	if requestBody.SKU == "" {
 		http.Error(w, "Product SKU is required", http.StatusBadRequest)
 		return
 	}
 
-	if updatedProduct.Price <= 0 {
+	if requestBody.Price <= 0 {
 		http.Error(w, "Product price must be greater than 0", http.StatusBadRequest)
 		return
 	}
 
-	if updatedProduct.Quantity < 0 {
+	if requestBody.Quantity < 0 {
 		http.Error(w, "Product quantity cannot be negative", http.StatusBadRequest)
 		return
 	}
 
 	for i, product := range products {
 		if product.ID == id {
-			updatedProduct.ID = id
-			products[i] = updatedProduct
+
+			updateProduct := Product{
+				ID:       id,
+				Name:     requestBody.Name,
+				SKU:      requestBody.SKU,
+				Price:    requestBody.Price,
+				Quantity: requestBody.Quantity,
+			}
+			products[i] = updateProduct
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 
-			json.NewEncoder(w).Encode(updatedProduct)
+			json.NewEncoder(w).Encode(updateProduct)
 			return
 		}
 	}
