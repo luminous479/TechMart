@@ -3,15 +3,20 @@ package main
 import (
 	"fmt"
 	"net/http"
+
 )
 
 func main() {
 
-	http.HandleFunc("/products", productHandler)
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /products", productHandler)
+
+	mux.HandleFunc("GET /products/{id}", productByIdHandler)
 
 	fmt.Println("server is running at 8080")
 
-	err := http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServe(":8080", mux)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 	}
@@ -20,22 +25,11 @@ func main() {
 
 func productHandler(w http.ResponseWriter, r *http.Request) {
 
-	switch r.Method {
 
-	case http.MethodGet:
-		fmt.Fprintln(w, "GET: Give me the products")
+	fmt.Fprintln(w,"View All Products")
+}
 
-	case http.MethodPost:
-		fmt.Fprintln(w, "POST: Create a product")
+func productByIdHandler(w http.ResponseWriter, r *http.Request){
 
-	case http.MethodPut:
-		fmt.Fprintln(w, "PUT: Update a product")
-
-	case http.MethodDelete:
-		fmt.Fprintln(w, "DELETE: Delete a product")
-
-	default:
-	   http.Error(w, "Methos not allowd", http.StatusMethodNotAllowed)
-
-	}
+	fmt.Fprintln(w, "Product ID : ", r.PathValue("id"))
 }
