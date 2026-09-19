@@ -49,7 +49,7 @@ func main() {
 	mux.HandleFunc("DELETE /products/{id}", deleteProduct)
 
 	fmt.Println("server is running at http://localhost:8080")
-	handler := loggingMiddeleware(recoveryMiddleware(mux))
+	handler := chainMiddleware(mux, recoveryMiddleware, loggingMiddeleware)
 	err := http.ListenAndServe(":8080", handler)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
@@ -228,4 +228,16 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 		}()
 		next.ServeHTTP(w, r)
 	})
+}
+
+func chainMiddleware(
+	handler http.Handler,
+	middlewares ...func(http.Handler) http.Handler,
+) http.Handler {
+
+	for i := len(middlewares) - 1; i >= 0; i-- {
+		handler = middlewares[i](handler)
+	}
+
+	return handler
 }
