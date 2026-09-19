@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type Product struct {
@@ -39,6 +40,31 @@ var products = []Product{
 	},
 }
 
+type StatusRecorder struct {
+	http.ResponseWriter
+	status      int
+	wroteHeader bool
+}
+
+func (sr *StatusRecorder) WriteHeader(status int) {
+	if sr.wroteHeader {
+		return
+	}
+
+	sr.status = status
+	sr.wroteHeader = true
+
+	sr.ResponseWriter.WriteHeader(status)
+}
+
+func (sr *StatusRecorder) Write(data []byte) (int, error) {
+	if !sr.wroteHeader {
+		sr.WriteHeader(http.StatusOK)
+	}
+
+	return sr.ResponseWriter.Write(data)
+}
+
 func main() {
 	mux := http.NewServeMux()
 
@@ -49,7 +75,13 @@ func main() {
 	mux.HandleFunc("DELETE /products/{id}", deleteProduct)
 
 	fmt.Println("server is running at http://localhost:8080")
-	handler := chainMiddleware(mux, recoveryMiddleware, loggingMiddeleware)
+
+	handler := chainMiddleware(
+		mux,
+		recoveryMiddleware,
+		loggingMiddleware,
+	)
+
 	err := http.ListenAndServe(":8080", handler)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
@@ -209,10 +241,27 @@ func deleteProduct(w http.ResponseWriter, r *http.Request) {
 
 	http.Error(w, "Product not found", http.StatusNotFound)
 }
-func loggingMiddeleware(next http.Handler) http.Handler {
+
+func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println(r.Method, r.URL)
-		next.ServeHTTP(w, r)
+		start := time.Now()
+
+		recorder := &StatusRecorder{
+			ResponseWriter: w,
+			status:         http.StatusOK,
+		}
+
+		next.ServeHTTP(recorder, r)
+
+		duration := time.Since(start)
+
+		fmt.Printf(
+			"%s %s → %d → %v\n",
+			r.Method,
+			r.URL.Path,
+			recorder.status,
+			duration,
+		)
 	})
 }
 
@@ -220,12 +269,17 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		defer func() {
-
 			if err := recover(); err != nil {
+				fmt.Println("PANIC:", err)
 
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				http.Error(
+					w,
+					"Internal Server Error",
+					http.StatusInternalServerError,
+				)
 			}
 		}()
+
 		next.ServeHTTP(w, r)
 	})
 }
