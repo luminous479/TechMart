@@ -49,8 +49,8 @@ func main() {
 	mux.HandleFunc("DELETE /products/{id}", deleteProduct)
 
 	fmt.Println("server is running at http://localhost:8080")
-
-	err := http.ListenAndServe(":8080", mux)
+    handler := loggingMiddeleware(mux)
+	err := http.ListenAndServe(":8080", handler)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 	}
@@ -209,3 +209,10 @@ func deleteProduct(w http.ResponseWriter, r *http.Request) {
 
 	http.Error(w, "Product not found", http.StatusNotFound)
 }
+func loggingMiddeleware(next http.Handler) http.Handler{
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println(r.Method,r.URL)
+		next.ServeHTTP(w,r)
+	})
+}
+
