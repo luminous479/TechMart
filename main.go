@@ -8,11 +8,11 @@ import (
 )
 
 type Product struct {
-	Id       int
-	Name     string
-	SKU      string
-	Price    float64
-	Quantity int
+	Id       int  `json:"id"`
+	Name     string `json:"name"`
+	SKU      string `json:"sku"`
+	Price    float64 `json:"price"`
+	Quantity int  `json: "quantity"`
 }
 
 var products = []Product{
@@ -81,7 +81,7 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 
 	var product Product
 
-	err := json.NewDecoder(r.Body).Decode(product)
+	err := json.NewDecoder(r.Body).Decode(&product)
 
 	if err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadGateway)
@@ -147,9 +147,35 @@ func getProduct(w http.ResponseWriter, r *http.Request) {
 
 func updateProduct(w http.ResponseWriter, r *http.Request) {
 
-	id := r.PathValue("id")
+	
 
-	fmt.Fprintln(w, "PUT: Update product ID:", id)
+	id, err := strconv.Atoi(r.PathValue("id"))
+      if err != nil{
+				http.Error(w, "Invalid Request Body ", http.StatusBadRequest)
+	  }
+	  var updateProduct Product
+     err = json.NewDecoder(r.Body).Decode(&updateProduct)
+
+	if err != nil {
+		http.Error(w, "Invalid Request Body ", http.StatusBadRequest)
+		return
+	}
+
+
+	for i, product := range products{
+
+		if product.Id == id {
+			updateProduct.Id = id
+          products[i] = updateProduct
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(updateProduct)
+		return 
+	}
+
+	http.Error(w,"Product Not Found",http.StatusNotFound)
+
+
 }
 
 func deleteProduct(w http.ResponseWriter, r *http.Request) {
