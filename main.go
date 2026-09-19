@@ -108,7 +108,8 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 	product.Id = len(products) + 1
 
 	products = append(products, product)
-
+    w.Header().Set("Content-Type","application/json")
+	w.Header().Set("Location",fmt.Sprintf("/products/%d",product.Id))
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(product)
 
@@ -168,6 +169,7 @@ func updateProduct(w http.ResponseWriter, r *http.Request) {
 			updateProduct.Id = id
           products[i] = updateProduct
 		}
+		w.Header().Set("Content-Type","application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(updateProduct)
 		return 
