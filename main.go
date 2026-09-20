@@ -1,12 +1,15 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 type Product struct {
@@ -93,6 +96,16 @@ func (sr *StatusRecorder) Write(data []byte) (int, error) {
 }
 
 func main() {
+
+	db, err := connectDB()
+	if err != nil {
+		fmt.Println("Database connection failed:", err)
+		return
+	}
+
+	defer db.Close()
+
+	fmt.Println("Connected to PostgreSQL")
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /products", getProducts)
@@ -109,7 +122,8 @@ func main() {
 		loggingMiddleware,
 	)
 
-	err := http.ListenAndServe(":8080", handler)
+	err = http.ListenAndServe(":8080", handler)
+
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 	}
@@ -397,4 +411,22 @@ func validateProduct(
 	}
 
 	return nil
+}
+
+// database connection
+
+func connectDB() (*sql.DB, error) {
+
+	dsn := "postgres://postgres@localhost/inventory_db?sslmode=disable"
+
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return nil, err
+	}
+	err = db.Ping()
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
+
 }
