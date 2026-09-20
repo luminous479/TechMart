@@ -22,18 +22,24 @@ type CreateProductRequest struct {
 	Price    float64 `json:"price"`
 	Quantity int     `json:"quantity"`
 }
+
 type UpdateProductRequest struct {
 	Name     string  `json:"name"`
 	SKU      string  `json:"sku"`
 	Price    float64 `json:"price"`
 	Quantity int     `json:"quantity"`
 }
+
 type ProductResponse struct {
 	ID       int     `json:"id"`
 	Name     string  `json:"name"`
 	SKU      string  `json:"sku"`
 	Price    float64 `json:"price"`
 	Quantity int     `json:"quantity"`
+}
+
+type ErrorResponse struct {
+	Error string `json:"error"`
 }
 
 var products = []Product{
@@ -114,7 +120,9 @@ func getProducts(w http.ResponseWriter, r *http.Request) {
 	for _, product := range products {
 		responses = append(responses, toProductResponse(product))
 	}
+
 	w.Header().Set("Content-Type", "application/json")
+
 	json.NewEncoder(w).Encode(responses)
 }
 
@@ -123,27 +131,47 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		writeJSONError(
+			w,
+			"Invalid request body",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	if requestBody.Name == "" {
-		http.Error(w, "Product name is required", http.StatusBadRequest)
+		writeJSONError(
+			w,
+			"Product name is required",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	if requestBody.SKU == "" {
-		http.Error(w, "Product SKU is required", http.StatusBadRequest)
+		writeJSONError(
+			w,
+			"Product SKU is required",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	if requestBody.Price <= 0 {
-		http.Error(w, "Product price must be greater than 0", http.StatusBadRequest)
+		writeJSONError(
+			w,
+			"Product price must be greater than 0",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	if requestBody.Quantity < 0 {
-		http.Error(w, "Product quantity cannot be negative", http.StatusBadRequest)
+		writeJSONError(
+			w,
+			"Product quantity cannot be negative",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
@@ -157,38 +185,55 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 
 	products = append(products, product)
 
+	response := toProductResponse(product)
+
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Location", fmt.Sprintf("/products/%d", product.ID))
+	w.Header().Set(
+		"Location",
+		fmt.Sprintf("/products/%d", product.ID),
+	)
 	w.WriteHeader(http.StatusCreated)
 
-	json.NewEncoder(w).Encode(product)
+	json.NewEncoder(w).Encode(response)
 }
 
 func getProduct(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
-
 	if err != nil {
-		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		writeJSONError(
+			w,
+			"Invalid product ID",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	for _, product := range products {
 		if product.ID == id {
-			w.Header().Set("Content-Type", "application/json")
 			response := toProductResponse(product)
+
+			w.Header().Set("Content-Type", "application/json")
+
 			json.NewEncoder(w).Encode(response)
 			return
 		}
 	}
 
-	http.Error(w, "Product not found", http.StatusNotFound)
+	writeJSONError(
+		w,
+		"Product not found",
+		http.StatusNotFound,
+	)
 }
 
 func updateProduct(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
-
 	if err != nil {
-		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		writeJSONError(
+			w,
+			"Invalid product ID",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
@@ -196,71 +241,126 @@ func updateProduct(w http.ResponseWriter, r *http.Request) {
 
 	err = json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		writeJSONError(
+			w,
+			"Invalid request body",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	if requestBody.Name == "" {
-		http.Error(w, "Product name is required", http.StatusBadRequest)
+		writeJSONError(
+			w,
+			"Product name is required",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	if requestBody.SKU == "" {
-		http.Error(w, "Product SKU is required", http.StatusBadRequest)
+		writeJSONError(
+			w,
+			"Product SKU is required",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	if requestBody.Price <= 0 {
-		http.Error(w, "Product price must be greater than 0", http.StatusBadRequest)
+		writeJSONError(
+			w,
+			"Product price must be greater than 0",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	if requestBody.Quantity < 0 {
-		http.Error(w, "Product quantity cannot be negative", http.StatusBadRequest)
+		writeJSONError(
+			w,
+			"Product quantity cannot be negative",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	for i, product := range products {
 		if product.ID == id {
-
-			updateProduct := Product{
+			updatedProduct := Product{
 				ID:       id,
 				Name:     requestBody.Name,
 				SKU:      requestBody.SKU,
 				Price:    requestBody.Price,
 				Quantity: requestBody.Quantity,
 			}
-			products[i] = updateProduct
+
+			products[i] = updatedProduct
+
+			response := toProductResponse(updatedProduct)
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 
-			json.NewEncoder(w).Encode(updateProduct)
+			json.NewEncoder(w).Encode(response)
 			return
 		}
 	}
 
-	http.Error(w, "Product not found", http.StatusNotFound)
+	writeJSONError(
+		w,
+		"Product not found",
+		http.StatusNotFound,
+	)
 }
 
 func deleteProduct(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
-
 	if err != nil {
-		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		writeJSONError(
+			w,
+			"Invalid product ID",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	for i, product := range products {
 		if product.ID == id {
-			products = append(products[:i], products[i+1:]...)
+			products = append(
+				products[:i],
+				products[i+1:]...,
+			)
 
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 	}
 
-	http.Error(w, "Product not found", http.StatusNotFound)
+	writeJSONError(
+		w,
+		"Product not found",
+		http.StatusNotFound,
+	)
+}
+
+func toProductResponse(product Product) ProductResponse {
+	return ProductResponse{
+		ID:       product.ID,
+		Name:     product.Name,
+		SKU:      product.SKU,
+		Price:    product.Price,
+		Quantity: product.Quantity,
+	}
+}
+
+func writeJSONError(w http.ResponseWriter, message string, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	json.NewEncoder(w).Encode(ErrorResponse{
+		Error: message,
+	})
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
@@ -288,12 +388,11 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 func recoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		defer func() {
 			if err := recover(); err != nil {
 				fmt.Println("PANIC:", err)
 
-				http.Error(
+				writeJSONError(
 					w,
 					"Internal Server Error",
 					http.StatusInternalServerError,
@@ -309,19 +408,9 @@ func chainMiddleware(
 	handler http.Handler,
 	middlewares ...func(http.Handler) http.Handler,
 ) http.Handler {
-
 	for i := len(middlewares) - 1; i >= 0; i-- {
 		handler = middlewares[i](handler)
 	}
 
 	return handler
-}
-func toProductResponse(product Product) ProductResponse {
-	return ProductResponse{
-		ID:       product.ID,
-		Name:     product.Name,
-		SKU:      product.SKU,
-		Price:    product.Price,
-		Quantity: product.Quantity,
-	}
 }
