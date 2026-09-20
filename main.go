@@ -111,7 +111,7 @@ func main() {
 
 	mux.HandleFunc("GET /products", getProducts(db))
 	mux.HandleFunc("POST /products", createProduct)
-	mux.HandleFunc("GET /products/{id}", getProduct)
+	mux.HandleFunc("GET /products/{id}", getProduct(db))
 	mux.HandleFunc("PUT /products/{id}", updateProduct)
 	mux.HandleFunc("DELETE /products/{id}", deleteProduct)
 
@@ -206,33 +206,43 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func getProduct(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.PathValue("id"))
-	if err != nil {
-		writeJSONError(
-			w,
-			"Invalid product ID",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	for _, product := range products {
-		if product.ID == id {
-			response := toProductResponse(product)
-
-			w.Header().Set("Content-Type", "application/json")
-
-			json.NewEncoder(w).Encode(response)
+func getProduct(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(r.PathValue("id"))
+		if err != nil {
+			writeJSONError(
+				w,
+				"Invalid product ID",
+				http.StatusBadRequest,
+			)
 			return
 		}
-	}
 
-	writeJSONError(
-		w,
-		"Product not found",
-		http.StatusNotFound,
-	)
+		product, err := getProductFromDB(db, id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				writeJSONError(
+					w,
+					"Product not found",
+					http.StatusNotFound,
+				)
+				return
+			}
+
+			writeJSONError(
+				w,
+				"Failed to get product",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		response := toProductResponse(*product)
+
+		w.Header().Set("Content-Type", "application/json")
+
+		json.NewEncoder(w).Encode(response)
+	}
 }
 
 func updateProduct(w http.ResponseWriter, r *http.Request) {
@@ -478,4 +488,25 @@ func getProductsFromDB(db *sql.DB) ([]Product, error) {
 
 	return products, nil
 
+}
+func getProductFromDB(db *sql.DB, id int) (*Product, error) {
+	var product Product
+
+	err := db.QueryRow(`
+		SELECT id, name, sku, price, quantity
+		FROM products
+		WHERE id = $1
+	`, id).Scan(
+		&product.ID,
+		&product.Name,
+		&product.SKU,
+		&product.Price,
+		&product.Quantity,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &product, nil
 }
