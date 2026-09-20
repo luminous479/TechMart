@@ -110,7 +110,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /products", getProducts(db))
-	mux.HandleFunc("POST /products", createProduct)
+	mux.HandleFunc("POST /products", createProduct(db))
 	mux.HandleFunc("GET /products/{id}", getProduct(db))
 	mux.HandleFunc("PUT /products/{id}", updateProduct)
 	mux.HandleFunc("DELETE /products/{id}", deleteProduct)
@@ -155,55 +155,65 @@ func getProducts(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func createProduct(w http.ResponseWriter, r *http.Request) {
-	var requestBody CreateProductRequest
+func createProduct(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var requestBody CreateProductRequest
 
-	err := json.NewDecoder(r.Body).Decode(&requestBody)
-	if err != nil {
-		writeJSONError(
-			w,
-			"Invalid request body",
-			http.StatusBadRequest,
+		err := json.NewDecoder(r.Body).Decode(&requestBody)
+		if err != nil {
+			writeJSONError(
+				w,
+				"Invalid request body",
+				http.StatusBadRequest,
+			)
+			return
+		}
+
+		err = validateProduct(
+			requestBody.Name,
+			requestBody.SKU,
+			requestBody.Price,
+			requestBody.Quantity,
 		)
-		return
-	}
+		if err != nil {
+			writeJSONError(
+				w,
+				err.Error(),
+				http.StatusBadRequest,
+			)
+			return
+		}
 
-	err = validateProduct(
-		requestBody.Name,
-		requestBody.SKU,
-		requestBody.Price,
-		requestBody.Quantity,
-	)
+		product := Product{
+			Name:     requestBody.Name,
+			SKU:      requestBody.SKU,
+			Price:    requestBody.Price,
+			Quantity: requestBody.Quantity,
+		}
 
-	if err != nil {
-		writeJSONError(
-			w,
-			err.Error(),
-			http.StatusBadRequest,
+		id, err := createProductInDB(db, product)
+		if err != nil {
+			writeJSONError(
+				w,
+				"Failed to create product",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		product.ID = id
+
+		response := toProductResponse(product)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(
+			"Location",
+			fmt.Sprintf("/products/%d", product.ID),
 		)
-		return
+		w.WriteHeader(http.StatusCreated)
+
+		json.NewEncoder(w).Encode(response)
 	}
-
-	product := Product{
-		ID:       len(products) + 1,
-		Name:     requestBody.Name,
-		SKU:      requestBody.SKU,
-		Price:    requestBody.Price,
-		Quantity: requestBody.Quantity,
-	}
-
-	products = append(products, product)
-
-	response := toProductResponse(product)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set(
-		"Location",
-		fmt.Sprintf("/products/%d", product.ID),
-	)
-	w.WriteHeader(http.StatusCreated)
-
-	json.NewEncoder(w).Encode(response)
 }
 
 func getProduct(db *sql.DB) http.HandlerFunc {
@@ -509,4 +519,24 @@ func getProductFromDB(db *sql.DB, id int) (*Product, error) {
 	}
 
 	return &product, nil
+}
+func createProductInDB(db *sql.DB, product Product) (int, error) {
+	var id int
+
+	err := db.QueryRow(`
+		INSERT INTO products (name, sku, price, quantity)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id
+	`,
+		product.Name,
+		product.SKU,
+		product.Price,
+		product.Quantity,
+	).Scan(&id)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
 }
