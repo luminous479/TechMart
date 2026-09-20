@@ -113,7 +113,7 @@ func main() {
 	mux.HandleFunc("POST /products", createProduct(db))
 	mux.HandleFunc("GET /products/{id}", getProduct(db))
 	mux.HandleFunc("PUT /products/{id}", updateProduct(db))
-	mux.HandleFunc("DELETE /products/{id}", deleteProduct)
+	mux.HandleFunc("DELETE /products/{id}", deleteProduct(db))
 
 	fmt.Println("server is running at http://localhost:8080")
 
@@ -329,34 +329,39 @@ func updateProduct(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func deleteProduct(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.PathValue("id"))
-	if err != nil {
-		writeJSONError(
-			w,
-			"Invalid product ID",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	for i, product := range products {
-		if product.ID == id {
-			products = append(
-				products[:i],
-				products[i+1:]...,
+func deleteProduct(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(r.PathValue("id"))
+		if err != nil {
+			writeJSONError(
+				w,
+				"Invalid product ID",
+				http.StatusBadRequest,
 			)
-
-			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-	}
 
-	writeJSONError(
-		w,
-		"Product not found",
-		http.StatusNotFound,
-	)
+		err = deleteProductFromDB(db, id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				writeJSONError(
+					w,
+					"Product not found",
+					http.StatusNotFound,
+				)
+				return
+			}
+
+			writeJSONError(
+				w,
+				"Failed to delete product",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
 
 func toProductResponse(product Product) ProductResponse {
@@ -566,6 +571,27 @@ func updateProductInDB(
 		product.Quantity,
 		id,
 	)
+
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+func deleteProductFromDB(db *sql.DB, id int) error {
+	result, err := db.Exec(`
+		DELETE FROM products
+		WHERE id = $1
+	`, id)
 
 	if err != nil {
 		return err
