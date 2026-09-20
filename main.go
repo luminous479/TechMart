@@ -28,6 +28,13 @@ type UpdateProductRequest struct {
 	Price    float64 `json:"price"`
 	Quantity int     `json:"quantity"`
 }
+type ProductResponse struct {
+	ID       int     `json:"id"`
+	Name     string  `json:"name"`
+	SKU      string  `json:"sku"`
+	Price    float64 `json:"price"`
+	Quantity int     `json:"quantity"`
+}
 
 var products = []Product{
 	{
@@ -102,19 +109,13 @@ func main() {
 }
 
 func getProducts(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "GET: All products")
+	responses := make([]ProductResponse, 0, len(products))
 
 	for _, product := range products {
-		fmt.Fprintf(
-			w,
-			"ID: %d | Name: %s | SKU: %s | Price: $%.2f | Quantity: %d\n",
-			product.ID,
-			product.Name,
-			product.SKU,
-			product.Price,
-			product.Quantity,
-		)
+		responses = append(responses, toProductResponse(product))
 	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responses)
 }
 
 func createProduct(w http.ResponseWriter, r *http.Request) {
@@ -173,15 +174,9 @@ func getProduct(w http.ResponseWriter, r *http.Request) {
 
 	for _, product := range products {
 		if product.ID == id {
-			fmt.Fprintf(
-				w,
-				"ID: %d | Name: %s | SKU: %s | Price: $%.2f | Quantity: %d\n",
-				product.ID,
-				product.Name,
-				product.SKU,
-				product.Price,
-				product.Quantity,
-			)
+			w.Header().Set("Content-Type", "application/json")
+			response := toProductResponse(product)
+			json.NewEncoder(w).Encode(response)
 			return
 		}
 	}
@@ -320,4 +315,13 @@ func chainMiddleware(
 	}
 
 	return handler
+}
+func toProductResponse(product Product) ProductResponse {
+	return ProductResponse{
+		ID:       product.ID,
+		Name:     product.Name,
+		SKU:      product.SKU,
+		Price:    product.Price,
+		Quantity: product.Quantity,
+	}
 }
