@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -139,37 +140,17 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if requestBody.Name == "" {
-		writeJSONError(
-			w,
-			"Product name is required",
-			http.StatusBadRequest,
-		)
-		return
-	}
+	err = validateProduct(
+		requestBody.Name,
+		requestBody.SKU,
+		requestBody.Price,
+		requestBody.Quantity,
+	)
 
-	if requestBody.SKU == "" {
+	if err != nil {
 		writeJSONError(
 			w,
-			"Product SKU is required",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	if requestBody.Price <= 0 {
-		writeJSONError(
-			w,
-			"Product price must be greater than 0",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	if requestBody.Quantity < 0 {
-		writeJSONError(
-			w,
-			"Product quantity cannot be negative",
+			err.Error(),
 			http.StatusBadRequest,
 		)
 		return
@@ -248,38 +229,17 @@ func updateProduct(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+	err = validateProduct(
+		requestBody.Name,
+		requestBody.SKU,
+		requestBody.Price,
+		requestBody.Quantity,
+	)
 
-	if requestBody.Name == "" {
+	if err != nil {
 		writeJSONError(
 			w,
-			"Product name is required",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	if requestBody.SKU == "" {
-		writeJSONError(
-			w,
-			"Product SKU is required",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	if requestBody.Price <= 0 {
-		writeJSONError(
-			w,
-			"Product price must be greater than 0",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	if requestBody.Quantity < 0 {
-		writeJSONError(
-			w,
-			"Product quantity cannot be negative",
+			err.Error(),
 			http.StatusBadRequest,
 		)
 		return
@@ -413,4 +373,28 @@ func chainMiddleware(
 	}
 
 	return handler
+}
+func validateProduct(
+	name string,
+	sku string,
+	price float64,
+	quantity int,
+) error {
+	if name == "" {
+		return errors.New("product name is required")
+	}
+
+	if sku == "" {
+		return errors.New("product SKU is required")
+	}
+
+	if price <= 0 {
+		return errors.New("product price must be greater than 0")
+	}
+
+	if quantity < 0 {
+		return errors.New("product quantity cannot be negative")
+	}
+
+	return nil
 }
