@@ -45,31 +45,6 @@ type ProductResponse struct {
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
-
-var products = []Product{
-	{
-		ID:       1,
-		Name:     "Logitech Keyboard",
-		SKU:      "KB-001",
-		Price:    45,
-		Quantity: 50,
-	},
-	{
-		ID:       2,
-		Name:     "Dell Monitor",
-		SKU:      "MN-001",
-		Price:    220,
-		Quantity: 20,
-	},
-	{
-		ID:       3,
-		Name:     "HP Mouse",
-		SKU:      "MS-001",
-		Price:    25,
-		Quantity: 100,
-	},
-}
-
 type StatusRecorder struct {
 	http.ResponseWriter
 	status      int
