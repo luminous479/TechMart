@@ -112,7 +112,7 @@ func main() {
 	mux.HandleFunc("GET /products", getProducts(db))
 	mux.HandleFunc("POST /products", createProduct(db))
 	mux.HandleFunc("GET /products/{id}", getProduct(db))
-	mux.HandleFunc("PUT /products/{id}", updateProduct)
+	mux.HandleFunc("PUT /products/{id}", updateProduct(db))
 	mux.HandleFunc("DELETE /products/{id}", deleteProduct)
 
 	fmt.Println("server is running at http://localhost:8080")
@@ -255,71 +255,78 @@ func getProduct(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func updateProduct(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.PathValue("id"))
-	if err != nil {
-		writeJSONError(
-			w,
-			"Invalid product ID",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	var requestBody UpdateProductRequest
-
-	err = json.NewDecoder(r.Body).Decode(&requestBody)
-	if err != nil {
-		writeJSONError(
-			w,
-			"Invalid request body",
-			http.StatusBadRequest,
-		)
-		return
-	}
-	err = validateProduct(
-		requestBody.Name,
-		requestBody.SKU,
-		requestBody.Price,
-		requestBody.Quantity,
-	)
-
-	if err != nil {
-		writeJSONError(
-			w,
-			err.Error(),
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	for i, product := range products {
-		if product.ID == id {
-			updatedProduct := Product{
-				ID:       id,
-				Name:     requestBody.Name,
-				SKU:      requestBody.SKU,
-				Price:    requestBody.Price,
-				Quantity: requestBody.Quantity,
-			}
-
-			products[i] = updatedProduct
-
-			response := toProductResponse(updatedProduct)
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-
-			json.NewEncoder(w).Encode(response)
+func updateProduct(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(r.PathValue("id"))
+		if err != nil {
+			writeJSONError(
+				w,
+				"Invalid product ID",
+				http.StatusBadRequest,
+			)
 			return
 		}
-	}
 
-	writeJSONError(
-		w,
-		"Product not found",
-		http.StatusNotFound,
-	)
+		var requestBody UpdateProductRequest
+
+		err = json.NewDecoder(r.Body).Decode(&requestBody)
+		if err != nil {
+			writeJSONError(
+				w,
+				"Invalid request body",
+				http.StatusBadRequest,
+			)
+			return
+		}
+
+		err = validateProduct(
+			requestBody.Name,
+			requestBody.SKU,
+			requestBody.Price,
+			requestBody.Quantity,
+		)
+		if err != nil {
+			writeJSONError(
+				w,
+				err.Error(),
+				http.StatusBadRequest,
+			)
+			return
+		}
+
+		product := Product{
+			ID:       id,
+			Name:     requestBody.Name,
+			SKU:      requestBody.SKU,
+			Price:    requestBody.Price,
+			Quantity: requestBody.Quantity,
+		}
+
+		err = updateProductInDB(db, id, product)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				writeJSONError(
+					w,
+					"Product not found",
+					http.StatusNotFound,
+				)
+				return
+			}
+
+			writeJSONError(
+				w,
+				"Failed to update product",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		response := toProductResponse(product)
+
+		w.Header().Set("Content-Type", "application/json")
+
+		json.NewEncoder(w).Encode(response)
+	}
 }
 
 func deleteProduct(w http.ResponseWriter, r *http.Request) {
@@ -539,4 +546,39 @@ func createProductInDB(db *sql.DB, product Product) (int, error) {
 	}
 
 	return id, nil
+}
+func updateProductInDB(
+	db *sql.DB,
+	id int,
+	product Product,
+) error {
+	result, err := db.Exec(`
+		UPDATE products
+		SET name = $1,
+		    sku = $2,
+		    price = $3,
+		    quantity = $4
+		WHERE id = $5
+	`,
+		product.Name,
+		product.SKU,
+		product.Price,
+		product.Quantity,
+		id,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }
