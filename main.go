@@ -106,9 +106,10 @@ func main() {
 	defer db.Close()
 
 	fmt.Println("Connected to PostgreSQL")
+
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /products", getProducts)
+	mux.HandleFunc("GET /products", getProducts(db))
 	mux.HandleFunc("POST /products", createProduct)
 	mux.HandleFunc("GET /products/{id}", getProduct)
 	mux.HandleFunc("PUT /products/{id}", updateProduct)
@@ -129,16 +130,29 @@ func main() {
 	}
 }
 
-func getProducts(w http.ResponseWriter, r *http.Request) {
-	responses := make([]ProductResponse, 0, len(products))
+func getProducts(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 
-	for _, product := range products {
-		responses = append(responses, toProductResponse(product))
+		products, err := getProductsFromDB(db)
+		if err != nil {
+			writeJSONError(
+				w,
+				"Failed to get products",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		responses := make([]ProductResponse, 0, len(products))
+
+		for _, product := range products {
+			responses = append(responses, toProductResponse(product))
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		json.NewEncoder(w).Encode(responses)
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-
-	json.NewEncoder(w).Encode(responses)
 }
 
 func createProduct(w http.ResponseWriter, r *http.Request) {
@@ -428,5 +442,40 @@ func connectDB() (*sql.DB, error) {
 		return nil, err
 	}
 	return db, nil
+
+}
+
+func getProductsFromDB(db *sql.DB) ([]Product, error) {
+	rows, err := db.Query(`SELECT id, name, sku, price, quantity
+		FROM products`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var products []Product
+
+	for rows.Next() {
+		var product Product
+		err := rows.Scan(
+			&product.ID,
+			&product.Name,
+			&product.SKU,
+			&product.Price,
+			&product.Quantity,
+		)
+		if err != nil {
+			return nil, err
+		}
+		products = append(products, product)
+
+	}
+	if err := rows.Err(); err != nil {
+
+		return nil, err
+
+	}
+
+	return products, nil
 
 }
