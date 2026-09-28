@@ -10,15 +10,12 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+
+   model "github.com/luminous479/TechMart/model"
+   repo "github.com/luminous479/TechMart/repository"
+service "github.com/luminous479/TechMart/service"
 )
 
-type Product struct {
-	ID       int     `json:"id"`
-	Name     string  `json:"name"`
-	SKU      string  `json:"sku"`
-	Price    float64 `json:"price"`
-	Quantity int     `json:"quantity"`
-}
 
 type CreateProductRequest struct {
 	Name     string  `json:"name"`
@@ -93,6 +90,9 @@ func main() {
 	defer db.Close()
 
 	fmt.Println("Connected to PostgreSQL")
+
+	productRepository := repo.NewProductRepository(db)
+	productService := service.NewProductService(*productRepository)
 
 	mux := http.NewServeMux()
 
@@ -174,7 +174,7 @@ func createProduct(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		product := Product{
+		product := model.Product{
 			Name:     requestBody.Name,
 			SKU:      requestBody.SKU,
 			Price:    requestBody.Price,
@@ -284,7 +284,7 @@ func updateProduct(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		product := Product{
+		product := model.Product{
 			ID:       id,
 			Name:     requestBody.Name,
 			SKU:      requestBody.SKU,
@@ -354,7 +354,7 @@ func deleteProduct(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func toProductResponse(product Product) ProductResponse {
+func toProductResponse(product model.Product) ProductResponse {
 	return ProductResponse{
 		ID:       product.ID,
 		Name:     product.Name,
@@ -467,7 +467,7 @@ func connectDB() (*sql.DB, error) {
 
 }
 
-func getProductsFromDB(db *sql.DB) ([]Product, error) {
+func getProductsFromDB(db *sql.DB) ([]model.Product, error) {
 	rows, err := db.Query(`SELECT id, name, sku, price, quantity
 		FROM products`)
 	if err != nil {
@@ -475,10 +475,10 @@ func getProductsFromDB(db *sql.DB) ([]Product, error) {
 	}
 	defer rows.Close()
 
-	var products []Product
+	var products []model.Product
 
 	for rows.Next() {
-		var product Product
+		var product model.Product
 		err := rows.Scan(
 			&product.ID,
 			&product.Name,
@@ -501,8 +501,8 @@ func getProductsFromDB(db *sql.DB) ([]Product, error) {
 	return products, nil
 
 }
-func getProductFromDB(db *sql.DB, id int) (*Product, error) {
-	var product Product
+func getProductFromDB(db *sql.DB, id int) (*model.Product, error) {
+	var product model.Product
 
 	err := db.QueryRow(`
 		SELECT id, name, sku, price, quantity
@@ -522,7 +522,7 @@ func getProductFromDB(db *sql.DB, id int) (*Product, error) {
 
 	return &product, nil
 }
-func createProductInDB(db *sql.DB, product Product) (int, error) {
+func createProductInDB(db *sql.DB, product model.Product) (int, error) {
 	var id int
 
 	err := db.QueryRow(`
@@ -545,7 +545,7 @@ func createProductInDB(db *sql.DB, product Product) (int, error) {
 func updateProductInDB(
 	db *sql.DB,
 	id int,
-	product Product,
+	product model.Product,
 ) error {
 	result, err := db.Exec(`
 		UPDATE products
