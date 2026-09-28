@@ -8,28 +8,15 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-
 	_ "github.com/lib/pq"
 
 	handler "github.com/luminous479/TechMart/handler"
 	model "github.com/luminous479/TechMart/model"
 	repo "github.com/luminous479/TechMart/repository"
 	service "github.com/luminous479/TechMart/service"
+	helper "github.com/luminous479/TechMart/helper"
 )
 
-type CreateProductRequest struct {
-	Name     string  `json:"name"`
-	SKU      string  `json:"sku"`
-	Price    float64 `json:"price"`
-	Quantity int     `json:"quantity"`
-}
-
-type UpdateProductRequest struct {
-	Name     string  `json:"name"`
-	SKU      string  `json:"sku"`
-	Price    float64 `json:"price"`
-	Quantity int     `json:"quantity"`
-}
 
 type ProductResponse struct {
 	ID       int     `json:"id"`
@@ -118,240 +105,6 @@ func main() {
 	}
 }
 
-func getProducts(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		products, err := getProductsFromDB(db)
-		if err != nil {
-			writeJSONError(
-				w,
-				"Failed to get products",
-				http.StatusInternalServerError,
-			)
-			return
-		}
-
-		responses := make([]ProductResponse, 0, len(products))
-
-		for _, product := range products {
-			responses = append(responses, toProductResponse(product))
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-
-		json.NewEncoder(w).Encode(responses)
-	}
-}
-
-func createProduct(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var requestBody CreateProductRequest
-
-		err := json.NewDecoder(r.Body).Decode(&requestBody)
-		if err != nil {
-			writeJSONError(
-				w,
-				"Invalid request body",
-				http.StatusBadRequest,
-			)
-			return
-		}
-
-		err = validateProduct(
-			requestBody.Name,
-			requestBody.SKU,
-			requestBody.Price,
-			requestBody.Quantity,
-		)
-		if err != nil {
-			writeJSONError(
-				w,
-				err.Error(),
-				http.StatusBadRequest,
-			)
-			return
-		}
-
-		product := model.Product{
-			Name:     requestBody.Name,
-			SKU:      requestBody.SKU,
-			Price:    requestBody.Price,
-			Quantity: requestBody.Quantity,
-		}
-
-		id, err := createProductInDB(db, product)
-		if err != nil {
-			writeJSONError(
-				w,
-				"Failed to create product",
-				http.StatusInternalServerError,
-			)
-			return
-		}
-
-		product.ID = id
-
-		response := toProductResponse(product)
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set(
-			"Location",
-			fmt.Sprintf("/products/%d", product.ID),
-		)
-		w.WriteHeader(http.StatusCreated)
-
-		json.NewEncoder(w).Encode(response)
-	}
-}
-
-func getProduct(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := strconv.Atoi(r.PathValue("id"))
-		if err != nil {
-			writeJSONError(
-				w,
-				"Invalid product ID",
-				http.StatusBadRequest,
-			)
-			return
-		}
-
-		product, err := getProductFromDB(db, id)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				writeJSONError(
-					w,
-					"Product not found",
-					http.StatusNotFound,
-				)
-				return
-			}
-
-			writeJSONError(
-				w,
-				"Failed to get product",
-				http.StatusInternalServerError,
-			)
-			return
-		}
-
-		response := toProductResponse(*product)
-
-		w.Header().Set("Content-Type", "application/json")
-
-		json.NewEncoder(w).Encode(response)
-	}
-}
-
-func updateProduct(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := strconv.Atoi(r.PathValue("id"))
-		if err != nil {
-			writeJSONError(
-				w,
-				"Invalid product ID",
-				http.StatusBadRequest,
-			)
-			return
-		}
-
-		var requestBody UpdateProductRequest
-
-		err = json.NewDecoder(r.Body).Decode(&requestBody)
-		if err != nil {
-			writeJSONError(
-				w,
-				"Invalid request body",
-				http.StatusBadRequest,
-			)
-			return
-		}
-
-		err = validateProduct(
-			requestBody.Name,
-			requestBody.SKU,
-			requestBody.Price,
-			requestBody.Quantity,
-		)
-		if err != nil {
-			writeJSONError(
-				w,
-				err.Error(),
-				http.StatusBadRequest,
-			)
-			return
-		}
-
-		product := model.Product{
-			ID:       id,
-			Name:     requestBody.Name,
-			SKU:      requestBody.SKU,
-			Price:    requestBody.Price,
-			Quantity: requestBody.Quantity,
-		}
-
-		err = updateProductInDB(db, id, product)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				writeJSONError(
-					w,
-					"Product not found",
-					http.StatusNotFound,
-				)
-				return
-			}
-
-			writeJSONError(
-				w,
-				"Failed to update product",
-				http.StatusInternalServerError,
-			)
-			return
-		}
-
-		response := toProductResponse(product)
-
-		w.Header().Set("Content-Type", "application/json")
-
-		json.NewEncoder(w).Encode(response)
-	}
-}
-
-func deleteProduct(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := strconv.Atoi(r.PathValue("id"))
-		if err != nil {
-			writeJSONError(
-				w,
-				"Invalid product ID",
-				http.StatusBadRequest,
-			)
-			return
-		}
-
-		err = deleteProductFromDB(db, id)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				writeJSONError(
-					w,
-					"Product not found",
-					http.StatusNotFound,
-				)
-				return
-			}
-
-			writeJSONError(
-				w,
-				"Failed to delete product",
-				http.StatusInternalServerError,
-			)
-			return
-		}
-
-		w.WriteHeader(http.StatusNoContent)
-	}
-}
-
 func toProductResponse(product model.Product) ProductResponse {
 	return ProductResponse{
 		ID:       product.ID,
@@ -362,14 +115,6 @@ func toProductResponse(product model.Product) ProductResponse {
 	}
 }
 
-func writeJSONError(w http.ResponseWriter, message string, status int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	json.NewEncoder(w).Encode(ErrorResponse{
-		Error: message,
-	})
-}
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -400,7 +145,7 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 			if err := recover(); err != nil {
 				fmt.Println("PANIC:", err)
 
-				writeJSONError(
+		helper.WriteJSONError(
 					w,
 					"Internal Server Error",
 					http.StatusInternalServerError,
@@ -422,30 +167,6 @@ func chainMiddleware(
 
 	return handler
 }
-func validateProduct(
-	name string,
-	sku string,
-	price float64,
-	quantity int,
-) error {
-	if name == "" {
-		return errors.New("product name is required")
-	}
-
-	if sku == "" {
-		return errors.New("product SKU is required")
-	}
-
-	if price <= 0 {
-		return errors.New("product price must be greater than 0")
-	}
-
-	if quantity < 0 {
-		return errors.New("product quantity cannot be negative")
-	}
-
-	return nil
-}
 
 // database connection
 
@@ -465,137 +186,6 @@ func connectDB() (*sql.DB, error) {
 
 }
 
-func getProductsFromDB(db *sql.DB) ([]model.Product, error) {
-	rows, err := db.Query(`SELECT id, name, sku, price, quantity
-		FROM products`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var products []model.Product
-
-	for rows.Next() {
-		var product model.Product
-		err := rows.Scan(
-			&product.ID,
-			&product.Name,
-			&product.SKU,
-			&product.Price,
-			&product.Quantity,
-		)
-		if err != nil {
-			return nil, err
-		}
-		products = append(products, product)
-
-	}
-	if err := rows.Err(); err != nil {
-
-		return nil, err
-
-	}
-
-	return products, nil
-
-}
-func getProductFromDB(db *sql.DB, id int) (*model.Product, error) {
-	var product model.Product
-
-	err := db.QueryRow(`
-		SELECT id, name, sku, price, quantity
-		FROM products
-		WHERE id = $1
-	`, id).Scan(
-		&product.ID,
-		&product.Name,
-		&product.SKU,
-		&product.Price,
-		&product.Quantity,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &product, nil
-}
-func createProductInDB(db *sql.DB, product model.Product) (int, error) {
-	var id int
-
-	err := db.QueryRow(`
-		INSERT INTO products (name, sku, price, quantity)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id
-	`,
-		product.Name,
-		product.SKU,
-		product.Price,
-		product.Quantity,
-	).Scan(&id)
-
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-func updateProductInDB(
-	db *sql.DB,
-	id int,
-	product model.Product,
-) error {
-	result, err := db.Exec(`
-		UPDATE products
-		SET name = $1,
-		    sku = $2,
-		    price = $3,
-		    quantity = $4
-		WHERE id = $5
-	`,
-		product.Name,
-		product.SKU,
-		product.Price,
-		product.Quantity,
-		id,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
-		return sql.ErrNoRows
-	}
-
-	return nil
-}
-func deleteProductFromDB(db *sql.DB, id int) error {
-	result, err := db.Exec(`
-		DELETE FROM products
-		WHERE id = $1
-	`, id)
-
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
-		return sql.ErrNoRows
-	}
-
-	return nil
-}
 func stockIn(db *sql.DB, productID int, quantity int, reason string) error {
 	if quantity <= 0 {
 		return errors.New("stock-in quantity must be greater than 0")
@@ -648,7 +238,7 @@ func stockInHandler(db *sql.DB) http.HandlerFunc {
 
 		id, err := strconv.Atoi(r.PathValue("id"))
 		if err != nil {
-			writeJSONError(
+		helper.WriteJSONError(
 				w,
 				"Invalid product ID",
 				http.StatusBadRequest,
@@ -660,7 +250,7 @@ func stockInHandler(db *sql.DB) http.HandlerFunc {
 
 		err = json.NewDecoder(r.Body).Decode(&request)
 		if err != nil {
-			writeJSONError(
+		helper.WriteJSONError(
 				w,
 				"Invalid request body",
 				http.StatusBadRequest,
@@ -677,7 +267,7 @@ func stockInHandler(db *sql.DB) http.HandlerFunc {
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				writeJSONError(
+			helper.WriteJSONError(
 					w,
 					"Product not found",
 					http.StatusNotFound,
@@ -685,7 +275,7 @@ func stockInHandler(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			writeJSONError(
+	helper.WriteJSONError(
 				w,
 				"Failed to process stock-in",
 				http.StatusInternalServerError,
@@ -752,7 +342,7 @@ func stockOutHandler(db *sql.DB) http.HandlerFunc {
 
 		id, err := strconv.Atoi(r.PathValue("id"))
 		if err != nil {
-			writeJSONError(
+	helper.WriteJSONError(
 				w,
 				"Invalid product ID",
 				http.StatusBadRequest,
@@ -764,7 +354,7 @@ func stockOutHandler(db *sql.DB) http.HandlerFunc {
 
 		err = json.NewDecoder(r.Body).Decode(&request)
 		if err != nil {
-			writeJSONError(
+		helper.WriteJSONError(
 				w,
 				"Invalid request body",
 				http.StatusBadRequest,
@@ -781,7 +371,7 @@ func stockOutHandler(db *sql.DB) http.HandlerFunc {
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				writeJSONError(
+			helper.WriteJSONError(
 					w,
 					"Product not found or insufficient stock",
 					http.StatusBadRequest,
@@ -789,7 +379,7 @@ func stockOutHandler(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			writeJSONError(
+		helper.WriteJSONError(
 				w,
 				"Failed to process stock-out",
 				http.StatusInternalServerError,
@@ -855,7 +445,7 @@ func getStockMovements(db *sql.DB) http.HandlerFunc {
 
 		id, err := strconv.Atoi(r.PathValue("id"))
 		if err != nil {
-			writeJSONError(
+		helper.WriteJSONError(
 				w,
 				"Invalid product ID",
 				http.StatusBadRequest,
@@ -865,7 +455,7 @@ func getStockMovements(db *sql.DB) http.HandlerFunc {
 
 		movements, err := getStockMovementsFromDB(db, id)
 		if err != nil {
-			writeJSONError(
+		helper.WriteJSONError(
 				w,
 				"Failed to get stock movements",
 				http.StatusInternalServerError,
