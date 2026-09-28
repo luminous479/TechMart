@@ -583,3 +583,33 @@ func deleteProductFromDB(db *sql.DB, id int) error {
 
 	return nil
 }
+func stockIn(db *sql.DB, productID int, quantity int, reason string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(`
+		UPDATE products
+		SET quantity = quantity + $1
+		WHERE id = $2
+	`, quantity, productID)
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.Exec(`
+		INSERT INTO stock_movements
+		(product_id, type, quantity, reason)
+		VALUES ($1, $2, $3, $4)
+	`, productID, "IN", quantity, reason)
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+}
