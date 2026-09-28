@@ -91,3 +91,35 @@ func createProductInDB(db *sql.DB, product model.Product) (int, error) {
 
 	return id, nil
 }
+func (r *ProductRepository) UpdateProduct(
+	id int,
+	product model.Product,
+) error {
+	result, err := r.db.Exec(`
+		UPDATE products
+		SET name = $1,
+		    sku = $2,
+		    price = $3,
+		    quantity = $4
+		WHERE id = $5
+	`,
+		product.Name,
+		product.SKU,
+		product.Price,
+		product.Quantity,
+	)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}

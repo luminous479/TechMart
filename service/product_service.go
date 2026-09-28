@@ -16,4 +16,9 @@ func NewProductService(repo repos.ProductRepository) *ProductService {
 	}
 }
 
-
+func (s *ProductService) UpdateProduct(
+	id int,
+	product model.Product,
+) error {
+	return s.repo.UpdateProduct(id, product)
+}
