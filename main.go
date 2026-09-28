@@ -584,12 +584,17 @@ func deleteProductFromDB(db *sql.DB, id int) error {
 	return nil
 }
 func stockIn(db *sql.DB, productID int, quantity int, reason string) error {
+	if quantity <= 0 {
+		return errors.New("stock-in quantity must be greater than 0")
+	}
+
 	tx, err := db.Begin()
 	if err != nil {
+		tx.Rollback()
 		return err
 	}
 
-	_, err = tx.Exec(`
+	result, err := tx.Exec(`
 		UPDATE products
 		SET quantity = quantity + $1
 		WHERE id = $2
@@ -600,9 +605,20 @@ func stockIn(db *sql.DB, productID int, quantity int, reason string) error {
 		return err
 	}
 
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if rowsAffected == 0 {
+		tx.Rollback()
+		return sql.ErrNoRows
+	}
+
 	_, err = tx.Exec(`
 		INSERT INTO stock_movements
-		(product_id, type, quantity, reason)
+			(product_id, type, quantity, reason)
 		VALUES ($1, $2, $3, $4)
 	`, productID, "IN", quantity, reason)
 
