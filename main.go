@@ -98,7 +98,7 @@ func main() {
 	mux.HandleFunc("POST /products", productHandler.CreateProduct)
 	mux.HandleFunc("GET /products/{id}", productHandler.GetProduct)
 	mux.HandleFunc("PUT /products/{id}", productHandler.UpdateProduct)
-	mux.HandleFunc("DELETE /products/{id}", deleteProduct(db))
+	mux.HandleFunc("DELETE /products/{id}", productHandler.DeleteProduct)
 	mux.HandleFunc("POST /products/{id}/stock-in", stockInHandler(db))
 	mux.HandleFunc("POST /products/{id}/stock-out", stockOutHandler(db))
 	mux.HandleFunc("GET /products/{id}/movements", getStockMovements(db))

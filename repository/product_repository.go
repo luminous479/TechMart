@@ -16,7 +16,7 @@ func NewProductRepository(db *sql.DB) *ProductRepository {
 	}
 }
 
-func  (r *ProductRepository) GetProducts() ([]model.Product, error) {
+func (r *ProductRepository) GetProducts() ([]model.Product, error) {
 	rows, err := r.db.Query(`SELECT id, name, sku, price, quantity
 		FROM products`)
 	if err != nil {
@@ -71,7 +71,7 @@ func (r *ProductRepository) GetProduct(id int) (*model.Product, error) {
 
 	return &product, nil
 }
-func  (r *ProductRepository)CreateProduct(product model.Product) (int, error) {
+func (r *ProductRepository) CreateProduct(product model.Product) (int, error) {
 	var id int
 
 	err := r.db.QueryRow(`
@@ -108,6 +108,26 @@ func (r *ProductRepository) UpdateProduct(
 		product.Price,
 		product.Quantity,
 	)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+func (r *ProductRepository) DeleteProduct(id int) error {
+	result, err := r.db.Exec(`
+		DELETE FROM products
+		WHERE id = $1
+	`, id)
 	if err != nil {
 		return err
 	}

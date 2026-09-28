@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/luminous479/TechMart/helper"
 	"github.com/luminous479/TechMart/model"
 	"github.com/luminous479/TechMart/service"
-	"github.com/luminous479/TechMart/helper"
 )
 
 type CreateProductRequest struct {
@@ -25,7 +25,6 @@ type UpdateProductRequest struct {
 	Price    float64 `json:"price"`
 	Quantity int     `json:"quantity"`
 }
-
 
 type ProductHandler struct {
 	service *service.ProductService
@@ -81,7 +80,7 @@ func (h *ProductHandler) GetProduct(
 			return
 		}
 
-		writeJSONError(
+		helper.WriteJSONError(
 			w,
 			"Failed to get product",
 			http.StatusInternalServerError,
@@ -111,7 +110,7 @@ func (h *ProductHandler) CreateProduct(
 	}
 
 	if request.Name == "" {
-			helper.WriteJSONError(
+		helper.WriteJSONError(
 			w,
 			"Product name is required",
 			http.StatusBadRequest,
@@ -120,7 +119,7 @@ func (h *ProductHandler) CreateProduct(
 	}
 
 	if request.SKU == "" {
-			helper.WriteJSONError(
+		helper.WriteJSONError(
 			w,
 			"Product SKU is required",
 			http.StatusBadRequest,
@@ -129,7 +128,7 @@ func (h *ProductHandler) CreateProduct(
 	}
 
 	if request.Price <= 0 {
-			helper.WriteJSONError(
+		helper.WriteJSONError(
 			w,
 			"Product price must be greater than 0",
 			http.StatusBadRequest,
@@ -138,7 +137,7 @@ func (h *ProductHandler) CreateProduct(
 	}
 
 	if request.Quantity < 0 {
-			helper.WriteJSONError(
+		helper.WriteJSONError(
 			w,
 			"Product quantity cannot be negative",
 			http.StatusBadRequest,
@@ -220,7 +219,7 @@ func (h *ProductHandler) UpdateProduct(
 	}
 
 	if request.Price <= 0 {
-			helper.WriteJSONError(
+		helper.WriteJSONError(
 			w,
 			"Product price must be greater than 0",
 			http.StatusBadRequest,
@@ -248,7 +247,7 @@ func (h *ProductHandler) UpdateProduct(
 	err = h.service.UpdateProduct(id, product)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-				helper.WriteJSONError(
+			helper.WriteJSONError(
 				w,
 				"Product not found",
 				http.StatusNotFound,
@@ -267,4 +266,39 @@ func (h *ProductHandler) UpdateProduct(
 	w.Header().Set("Content-Type", "application/json")
 
 	json.NewEncoder(w).Encode(product)
+}
+func (h *ProductHandler) DeleteProduct(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		helper.WriteJSONError(
+			w,
+			"Invalid product ID",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	err = h.service.DeleteProduct(id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			helper.WriteJSONError(
+				w,
+				"Product not found",
+				http.StatusNotFound,
+			)
+			return
+		}
+
+		helper.WriteJSONError(
+			w,
+			"Failed to delete product",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
