@@ -94,6 +94,7 @@ func main() {
 	mux.HandleFunc("PUT /products/{id}", updateProduct(db))
 	mux.HandleFunc("DELETE /products/{id}", deleteProduct(db))
 	mux.HandleFunc("POST /products/{id}/stock-in", stockInHandler(db))
+	mux.HandleFunc("POST /products/{id}/stock-out", stockOutHandler(db))
 
 	fmt.Println("server is running at http://localhost:8080")
 
@@ -690,6 +691,110 @@ func stockInHandler(db *sql.DB) http.HandlerFunc {
 
 		json.NewEncoder(w).Encode(map[string]string{
 			"message": "Stock added successfully",
+		})
+	}
+}
+func stockOut(db *sql.DB, productID int, quantity int, reason string) error {
+	if quantity <= 0 {
+		return errors.New("stock-out quantity must be greater than 0")
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	result, err := tx.Exec(`
+		UPDATE products
+		SET quantity = quantity - $1
+		WHERE id = $2
+		  AND quantity >= $1
+	`, quantity, productID)
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if rowsAffected == 0 {
+		tx.Rollback()
+		return sql.ErrNoRows
+	}
+
+	_, err = tx.Exec(`
+		INSERT INTO stock_movements
+		(product_id, type, quantity, reason)
+		VALUES ($1, $2, $3, $4)
+	`, productID, "OUT", quantity, reason)
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+}
+func stockOutHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		id, err := strconv.Atoi(r.PathValue("id"))
+		if err != nil {
+			writeJSONError(
+				w,
+				"Invalid product ID",
+				http.StatusBadRequest,
+			)
+			return
+		}
+
+		var request StockRequest
+
+		err = json.NewDecoder(r.Body).Decode(&request)
+		if err != nil {
+			writeJSONError(
+				w,
+				"Invalid request body",
+				http.StatusBadRequest,
+			)
+			return
+		}
+
+		err = stockOut(
+			db,
+			id,
+			request.Quantity,
+			request.Reason,
+		)
+
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				writeJSONError(
+					w,
+					"Product not found or insufficient stock",
+					http.StatusBadRequest,
+				)
+				return
+			}
+
+			writeJSONError(
+				w,
+				"Failed to process stock-out",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		json.NewEncoder(w).Encode(map[string]string{
+			"message": "Stock removed successfully",
 		})
 	}
 }
