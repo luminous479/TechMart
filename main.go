@@ -54,6 +54,14 @@ type StockRequest struct {
 	Quantity int    `json:"quantity"`
 	Reason   string `json:"reason"`
 }
+type StockMovement struct {
+	ID        int       `json:"id"`
+	ProductID int       `json:"product_id"`
+	Type      string    `json:"type"`
+	Quantity  int       `json:"quantity"`
+	Reason    string    `json:"reason"`
+	CreatedAt time.Time `json:"created_at"`
+}
 
 func (sr *StatusRecorder) WriteHeader(status int) {
 	if sr.wroteHeader {
@@ -95,6 +103,7 @@ func main() {
 	mux.HandleFunc("DELETE /products/{id}", deleteProduct(db))
 	mux.HandleFunc("POST /products/{id}/stock-in", stockInHandler(db))
 	mux.HandleFunc("POST /products/{id}/stock-out", stockOutHandler(db))
+	mux.HandleFunc("GET /products/{id}/movements", getStockMovements(db))
 
 	fmt.Println("server is running at http://localhost:8080")
 
@@ -796,5 +805,78 @@ func stockOutHandler(db *sql.DB) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]string{
 			"message": "Stock removed successfully",
 		})
+	}
+}
+func getStockMovementsFromDB(
+	db *sql.DB,
+	productID int,
+) ([]StockMovement, error) {
+
+	rows, err := db.Query(`
+		SELECT id, product_id, type, quantity, reason, created_at
+		FROM stock_movements
+		WHERE product_id = $1
+		ORDER BY created_at DESC
+	`, productID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var movements []StockMovement
+
+	for rows.Next() {
+		var movement StockMovement
+
+		err := rows.Scan(
+			&movement.ID,
+			&movement.ProductID,
+			&movement.Type,
+			&movement.Quantity,
+			&movement.Reason,
+			&movement.CreatedAt,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		movements = append(movements, movement)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return movements, nil
+}
+func getStockMovements(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		id, err := strconv.Atoi(r.PathValue("id"))
+		if err != nil {
+			writeJSONError(
+				w,
+				"Invalid product ID",
+				http.StatusBadRequest,
+			)
+			return
+		}
+
+		movements, err := getStockMovementsFromDB(db, id)
+		if err != nil {
+			writeJSONError(
+				w,
+				"Failed to get stock movements",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		json.NewEncoder(w).Encode(movements)
 	}
 }
