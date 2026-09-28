@@ -97,9 +97,9 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /products", getProducts(productHandler.GetProducts()))
+	mux.HandleFunc("GET /products", productHandler.GetProducts)
 	mux.HandleFunc("POST /products", createProduct(db))
-	mux.HandleFunc("GET /products/{id}", getProduct(db))
+	mux.HandleFunc("GET /products/{id}", productHandler.GetProduct)
 	mux.HandleFunc("PUT /products/{id}", updateProduct(db))
 	mux.HandleFunc("DELETE /products/{id}", deleteProduct(db))
 	mux.HandleFunc("POST /products/{id}/stock-in", stockInHandler(db))
