@@ -605,9 +605,9 @@ func stockIn(db *sql.DB, productID int, quantity int, reason string) error {
 
 	tx, err := db.Begin()
 	if err != nil {
-		tx.Rollback()
 		return err
 	}
+	defer tx.Rollback()
 
 	result, err := tx.Exec(`
 		UPDATE products
@@ -616,18 +616,18 @@ func stockIn(db *sql.DB, productID int, quantity int, reason string) error {
 	`, quantity, productID)
 
 	if err != nil {
-		tx.Rollback()
+
 		return err
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		tx.Rollback()
+
 		return err
 	}
 
 	if rowsAffected == 0 {
-		tx.Rollback()
+
 		return sql.ErrNoRows
 	}
 
@@ -638,7 +638,7 @@ func stockIn(db *sql.DB, productID int, quantity int, reason string) error {
 	`, productID, "IN", quantity, reason)
 
 	if err != nil {
-		tx.Rollback()
+
 		return err
 	}
 
@@ -712,7 +712,7 @@ func stockOut(db *sql.DB, productID int, quantity int, reason string) error {
 	if err != nil {
 		return err
 	}
-
+	defer tx.Rollback()
 	result, err := tx.Exec(`
 		UPDATE products
 		SET quantity = quantity - $1
@@ -721,18 +721,18 @@ func stockOut(db *sql.DB, productID int, quantity int, reason string) error {
 	`, quantity, productID)
 
 	if err != nil {
-		tx.Rollback()
+
 		return err
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		tx.Rollback()
+
 		return err
 	}
 
 	if rowsAffected == 0 {
-		tx.Rollback()
+
 		return sql.ErrNoRows
 	}
 
@@ -743,7 +743,7 @@ func stockOut(db *sql.DB, productID int, quantity int, reason string) error {
 	`, productID, "OUT", quantity, reason)
 
 	if err != nil {
-		tx.Rollback()
+
 		return err
 	}
 
