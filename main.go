@@ -11,11 +11,11 @@ import (
 
 	_ "github.com/lib/pq"
 
-   model "github.com/luminous479/TechMart/model"
-   repo "github.com/luminous479/TechMart/repository"
-service "github.com/luminous479/TechMart/service"
+	handler "github.com/luminous479/TechMart/handler"
+	model "github.com/luminous479/TechMart/model"
+	repo "github.com/luminous479/TechMart/repository"
+	service "github.com/luminous479/TechMart/service"
 )
-
 
 type CreateProductRequest struct {
 	Name     string  `json:"name"`
@@ -93,10 +93,11 @@ func main() {
 
 	productRepository := repo.NewProductRepository(db)
 	productService := service.NewProductService(*productRepository)
+	productHandler := handler.NewProductHandler(productService)
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /products", getProducts(db))
+	mux.HandleFunc("GET /products", getProducts(productHandler.GetProducts()))
 	mux.HandleFunc("POST /products", createProduct(db))
 	mux.HandleFunc("GET /products/{id}", getProduct(db))
 	mux.HandleFunc("PUT /products/{id}", updateProduct(db))
