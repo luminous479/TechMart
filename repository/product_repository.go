@@ -16,8 +16,8 @@ func NewProductRepository(db *sql.DB) *ProductRepository {
 	}
 }
 
-func getProductsFromDB(db *sql.DB) ([]model.Product, error) {
-	rows, err := db.Query(`SELECT id, name, sku, price, quantity
+func  (r *ProductRepository) GetProducts() ([]model.Product, error) {
+	rows, err := r.db.Query(`SELECT id, name, sku, price, quantity
 		FROM products`)
 	if err != nil {
 		return nil, err
@@ -50,10 +50,10 @@ func getProductsFromDB(db *sql.DB) ([]model.Product, error) {
 	return products, nil
 
 }
-func getProductFromDB(db *sql.DB, id int) (*model.Product, error) {
+func (r *ProductRepository) GetProduct(id int) (*model.Product, error) {
 	var product model.Product
 
-	err := db.QueryRow(`
+	err := r.db.QueryRow(`
 		SELECT id, name, sku, price, quantity
 		FROM products
 		WHERE id = $1
@@ -71,10 +71,10 @@ func getProductFromDB(db *sql.DB, id int) (*model.Product, error) {
 
 	return &product, nil
 }
-func createProductInDB(db *sql.DB, product model.Product) (int, error) {
+func  (r *ProductRepository)CreateProduct(product model.Product) (int, error) {
 	var id int
 
-	err := db.QueryRow(`
+	err := r.db.QueryRow(`
 		INSERT INTO products (name, sku, price, quantity)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id

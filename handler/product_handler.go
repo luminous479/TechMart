@@ -25,6 +25,7 @@ type UpdateProductRequest struct {
 	Quantity int     `json:"quantity"`
 }
 
+
 type ProductHandler struct {
 	service *service.ProductService
 }

@@ -39,9 +39,6 @@ type ProductResponse struct {
 	Quantity int     `json:"quantity"`
 }
 
-type ErrorResponse struct {
-	Error string `json:"error"`
-}
 type StatusRecorder struct {
 	http.ResponseWriter
 	status      int
