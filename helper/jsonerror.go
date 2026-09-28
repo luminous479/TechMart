@@ -9,7 +9,7 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-func writeJSONError(w http.ResponseWriter, message string, status int) {
+func WriteJSONError(w http.ResponseWriter, message string, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 

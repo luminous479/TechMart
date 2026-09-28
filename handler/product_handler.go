@@ -10,6 +10,7 @@ import (
 
 	"github.com/luminous479/TechMart/model"
 	"github.com/luminous479/TechMart/service"
+	"github.com/luminous479/TechMart/helper"
 )
 
 type CreateProductRequest struct {
@@ -61,7 +62,7 @@ func (h *ProductHandler) GetProduct(
 ) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		writeJSONError(
+		helper.WriteJSONError(
 			w,
 			"Invalid product ID",
 			http.StatusBadRequest,
@@ -72,7 +73,7 @@ func (h *ProductHandler) GetProduct(
 	product, err := h.service.GetProduct(id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			writeJSONError(
+			helper.WriteJSONError(
 				w,
 				"Product not found",
 				http.StatusNotFound,
@@ -101,7 +102,7 @@ func (h *ProductHandler) CreateProduct(
 
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		writeJSONError(
+		helper.WriteJSONError(
 			w,
 			"Invalid request body",
 			http.StatusBadRequest,
@@ -110,7 +111,7 @@ func (h *ProductHandler) CreateProduct(
 	}
 
 	if request.Name == "" {
-		writeJSONError(
+			helper.WriteJSONError(
 			w,
 			"Product name is required",
 			http.StatusBadRequest,
@@ -119,7 +120,7 @@ func (h *ProductHandler) CreateProduct(
 	}
 
 	if request.SKU == "" {
-		writeJSONError(
+			helper.WriteJSONError(
 			w,
 			"Product SKU is required",
 			http.StatusBadRequest,
@@ -128,7 +129,7 @@ func (h *ProductHandler) CreateProduct(
 	}
 
 	if request.Price <= 0 {
-		writeJSONError(
+			helper.WriteJSONError(
 			w,
 			"Product price must be greater than 0",
 			http.StatusBadRequest,
@@ -137,7 +138,7 @@ func (h *ProductHandler) CreateProduct(
 	}
 
 	if request.Quantity < 0 {
-		writeJSONError(
+			helper.WriteJSONError(
 			w,
 			"Product quantity cannot be negative",
 			http.StatusBadRequest,
@@ -154,7 +155,7 @@ func (h *ProductHandler) CreateProduct(
 
 	id, err := h.service.CreateProduct(product)
 	if err != nil {
-		writeJSONError(
+		helper.WriteJSONError(
 			w,
 			"Failed to create product",
 			http.StatusInternalServerError,
@@ -180,7 +181,7 @@ func (h *ProductHandler) UpdateProduct(
 ) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		writeJSONError(
+		helper.WriteJSONError(
 			w,
 			"Invalid product ID",
 			http.StatusBadRequest,
@@ -192,7 +193,7 @@ func (h *ProductHandler) UpdateProduct(
 
 	err = json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		writeJSONError(
+		helper.WriteJSONError(
 			w,
 			"Invalid request body",
 			http.StatusBadRequest,
@@ -201,7 +202,7 @@ func (h *ProductHandler) UpdateProduct(
 	}
 
 	if request.Name == "" {
-		writeJSONError(
+		helper.WriteJSONError(
 			w,
 			"Product name is required",
 			http.StatusBadRequest,
@@ -210,7 +211,7 @@ func (h *ProductHandler) UpdateProduct(
 	}
 
 	if request.SKU == "" {
-		writeJSONError(
+		helper.WriteJSONError(
 			w,
 			"Product SKU is required",
 			http.StatusBadRequest,
@@ -219,7 +220,7 @@ func (h *ProductHandler) UpdateProduct(
 	}
 
 	if request.Price <= 0 {
-		writeJSONError(
+			helper.WriteJSONError(
 			w,
 			"Product price must be greater than 0",
 			http.StatusBadRequest,
@@ -228,7 +229,7 @@ func (h *ProductHandler) UpdateProduct(
 	}
 
 	if request.Quantity < 0 {
-		writeJSONError(
+		helper.WriteJSONError(
 			w,
 			"Product quantity cannot be negative",
 			http.StatusBadRequest,
@@ -247,7 +248,7 @@ func (h *ProductHandler) UpdateProduct(
 	err = h.service.UpdateProduct(id, product)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			writeJSONError(
+				helper.WriteJSONError(
 				w,
 				"Product not found",
 				http.StatusNotFound,
@@ -255,7 +256,7 @@ func (h *ProductHandler) UpdateProduct(
 			return
 		}
 
-		writeJSONError(
+		helper.WriteJSONError(
 			w,
 			"Failed to update product",
 			http.StatusInternalServerError,
