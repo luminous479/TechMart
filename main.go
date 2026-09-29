@@ -186,53 +186,6 @@ func connectDB() (*sql.DB, error) {
 
 }
 
-func stockIn(db *sql.DB, productID int, quantity int, reason string) error {
-	if quantity <= 0 {
-		return errors.New("stock-in quantity must be greater than 0")
-	}
-
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	result, err := tx.Exec(`
-		UPDATE products
-		SET quantity = quantity + $1
-		WHERE id = $2
-	`, quantity, productID)
-
-	if err != nil {
-
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-
-		return err
-	}
-
-	if rowsAffected == 0 {
-
-		return sql.ErrNoRows
-	}
-
-	_, err = tx.Exec(`
-		INSERT INTO stock_movements
-			(product_id, type, quantity, reason)
-		VALUES ($1, $2, $3, $4)
-	`, productID, "IN", quantity, reason)
-
-	if err != nil {
-
-		return err
-	}
-
-	return tx.Commit()
-}
-
 func stockInHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
