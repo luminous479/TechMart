@@ -7,6 +7,8 @@ import (
 	repos "github.com/luminous479/TechMart/repository"
 )
 
+var ErrDuplicateSKU = errors.New("product SKU already exists")
+
 type ProductService struct {
 	repo *repos.ProductRepository
 }
@@ -34,7 +36,14 @@ func (s *ProductService) CreateProduct(product model.Product,
 	if err := validateProduct(product); err != nil {
 		return 0, err
 	}
-	return s.repo.CreateProduct(product)
+
+	id, err := s.repo.CreateProduct(product)
+	if err != nil {
+
+		return 0, err
+
+	}
+	return id, nil
 }
 func (s *ProductService) UpdateProduct(
 	id int,
