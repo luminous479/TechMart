@@ -109,42 +109,6 @@ func (h *ProductHandler) CreateProduct(
 		return
 	}
 
-	if request.Name == "" {
-		helper.WriteJSONError(
-			w,
-			"Product name is required",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	if request.SKU == "" {
-		helper.WriteJSONError(
-			w,
-			"Product SKU is required",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	if request.Price <= 0 {
-		helper.WriteJSONError(
-			w,
-			"Product price must be greater than 0",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	if request.Quantity < 0 {
-		helper.WriteJSONError(
-			w,
-			"Product quantity cannot be negative",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
 	product := model.Product{
 		Name:     request.Name,
 		SKU:      request.SKU,
@@ -156,8 +120,8 @@ func (h *ProductHandler) CreateProduct(
 	if err != nil {
 		helper.WriteJSONError(
 			w,
-			"Failed to create product",
-			http.StatusInternalServerError,
+			err.Error(),
+			http.StatusBadRequest,
 		)
 		return
 	}
@@ -200,41 +164,6 @@ func (h *ProductHandler) UpdateProduct(
 		return
 	}
 
-	if request.Name == "" {
-		helper.WriteJSONError(
-			w,
-			"Product name is required",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	if request.SKU == "" {
-		helper.WriteJSONError(
-			w,
-			"Product SKU is required",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	if request.Price <= 0 {
-		helper.WriteJSONError(
-			w,
-			"Product price must be greater than 0",
-			http.StatusBadRequest,
-		)
-		return
-	}
-
-	if request.Quantity < 0 {
-		helper.WriteJSONError(
-			w,
-			"Product quantity cannot be negative",
-			http.StatusBadRequest,
-		)
-		return
-	}
 
 	product := model.Product{
 		ID:       id,
@@ -257,8 +186,8 @@ func (h *ProductHandler) UpdateProduct(
 
 		helper.WriteJSONError(
 			w,
-			"Failed to update product",
-			http.StatusInternalServerError,
+			err.Error(),
+			http.StatusBadRequest,
 		)
 		return
 	}
