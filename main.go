@@ -79,6 +79,10 @@ func main() {
 	productService := service.NewProductService(productRepository)
 	productHandler := handler.NewProductHandler(productService)
 
+	stockrepo := repo.NewstockRepository(db)
+	stockService := service.NewStockService(stockrepo)
+
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /products", productHandler.GetProducts)
@@ -86,7 +90,7 @@ func main() {
 	mux.HandleFunc("GET /products/{id}", productHandler.GetProduct)
 	mux.HandleFunc("PUT /products/{id}", productHandler.UpdateProduct)
 	mux.HandleFunc("DELETE /products/{id}", productHandler.DeleteProduct)
-	mux.HandleFunc("POST /products/{id}/stock-in", stockInHandler(db))
+	mux.HandleFunc("POST /products/{id}/stock-in", stockInHandler(stockService))
 	mux.HandleFunc("POST /products/{id}/stock-out", stockOutHandler(db))
 	mux.HandleFunc("GET /products/{id}/movements", getStockMovements(db))
 
@@ -186,12 +190,12 @@ func connectDB() (*sql.DB, error) {
 
 }
 
-func stockInHandler(db *sql.DB) http.HandlerFunc {
+func stockInHandler(stockService *service.StockService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		id, err := strconv.Atoi(r.PathValue("id"))
 		if err != nil {
-		helper.WriteJSONError(
+			helper.WriteJSONError(
 				w,
 				"Invalid product ID",
 				http.StatusBadRequest,
@@ -203,7 +207,7 @@ func stockInHandler(db *sql.DB) http.HandlerFunc {
 
 		err = json.NewDecoder(r.Body).Decode(&request)
 		if err != nil {
-		helper.WriteJSONError(
+			helper.WriteJSONError(
 				w,
 				"Invalid request body",
 				http.StatusBadRequest,
@@ -211,8 +215,7 @@ func stockInHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		err = stockIn(
-			db,
+		err = stockService.StockIn(
 			id,
 			request.Quantity,
 			request.Reason,
@@ -220,7 +223,7 @@ func stockInHandler(db *sql.DB) http.HandlerFunc {
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-			helper.WriteJSONError(
+				helper.WriteJSONError(
 					w,
 					"Product not found",
 					http.StatusNotFound,
@@ -228,20 +231,15 @@ func stockInHandler(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-	helper.WriteJSONError(
+			helper.WriteJSONError(
 				w,
-				"Failed to process stock-in",
-				http.StatusInternalServerError,
+				err.Error(),
+				http.StatusBadRequest,
 			)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
-		json.NewEncoder(w).Encode(map[string]string{
-			"message": "Stock added successfully",
-		})
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 func stockOut(db *sql.DB, productID int, quantity int, reason string) error {

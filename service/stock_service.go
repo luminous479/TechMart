@@ -2,8 +2,7 @@ package service
 
 import (
 	"errors"
-
-	"github.com/luminous479/TechMart/model"
+ 
 )
 
 type StockRepository interface {
