@@ -76,7 +76,7 @@ func main() {
 	fmt.Println("Connected to PostgreSQL")
 
 	productRepository := repo.NewProductRepository(db)
-	productService := service.NewProductService(*productRepository)
+	productService := service.NewProductService(productRepository)
 	productHandler := handler.NewProductHandler(productService)
 
 	mux := http.NewServeMux()

@@ -4,19 +4,26 @@ import (
 	"errors"
 
 	"github.com/luminous479/TechMart/model"
-	repos "github.com/luminous479/TechMart/repository"
+	
 )
 
 var ErrDuplicateSKU = errors.New("product SKU already exists")
 
-type ProductService struct {
-	repo *repos.ProductRepository
+
+type ProductRepository interface {
+	GetProducts() ([]model.Product, error)
+	GetProduct(id int) (*model.Product, error)
+	CreateProduct(product model.Product) (int, error)
+	UpdateProduct(id int, product model.Product) error
+	DeleteProduct(id int) error
 }
 
-func NewProductService(repo repos.ProductRepository) *ProductService {
-
+type ProductService struct {
+	repo ProductRepository
+}
+func NewProductService(repo ProductRepository) *ProductService {
 	return &ProductService{
-		repo: &repo,
+		repo: repo,
 	}
 }
 func (s *ProductService) GetProducts() ([]model.Product, error) {
