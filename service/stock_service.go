@@ -2,12 +2,14 @@ package service
 
 import (
 	"errors"
- 
+
+	"github.com/luminous479/TechMart/model"
 )
 
 type StockRepository interface {
 	StockIn(productID int, quantity int, reason string) error
 	StockOut(productID int, quantity int, reason string) error
+	GetStockMovements(productID int) ([]model.StockMovement, error)
 }
 
 type StockService struct {
@@ -47,4 +49,10 @@ func (s *StockService) StockOut(
 		quantity,
 		reason,
 	)
+}
+func (s *StockService) GetStockMovements(
+	productID int,
+) ([]model.StockMovement, error) {
+
+	return s.repo.GetStockMovements(productID)
 }

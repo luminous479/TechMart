@@ -3,6 +3,8 @@ package repository
 import (
 	"database/sql"
 	"errors"
+
+	"github.com/luminous479/TechMart/model"
 )
 
 type stockRepository struct {
@@ -110,4 +112,48 @@ func (r *stockRepository) StockOut(
 	}
 
 	return tx.Commit()
+}
+func (r *stockRepository) GetStockMovements(
+	productID int,
+) ([]model.StockMovement, error) {
+
+	rows, err := r.db.Query(`
+		SELECT id, product_id, type, quantity, reason, created_at
+		FROM stock_movements
+		WHERE product_id = $1
+		ORDER BY created_at DESC
+	`, productID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var movements []model.StockMovement
+
+	for rows.Next() {
+		var movement model.StockMovement
+
+		err := rows.Scan(
+			&movement.ID,
+			&movement.ProductID,
+			&movement.Type,
+			&movement.Quantity,
+			&movement.Reason,
+			&movement.CreatedAt,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		movements = append(movements, movement)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return movements, nil
 }

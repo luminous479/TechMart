@@ -92,7 +92,7 @@ func main() {
 	mux.HandleFunc("DELETE /products/{id}", productHandler.DeleteProduct)
 	mux.HandleFunc("POST /products/{id}/stock-in", stockInHandler(stockService))
 	mux.HandleFunc("POST /products/{id}/stock-out", stockOutHandler(stockService))
-	mux.HandleFunc("GET /products/{id}/movements", getStockMovements(db))
+	mux.HandleFunc("GET /products/{id}/movements", getStockMovements(stockService))
 
 	fmt.Println("server is running at http://localhost:8080")
 
@@ -101,7 +101,7 @@ func main() {
 		recoveryMiddleware,
 		loggingMiddleware,
 	)
-
+ 
 	err = http.ListenAndServe(":8080", handler)
 
 	if err != nil {
@@ -242,52 +242,6 @@ func stockInHandler(stockService *service.StockService) http.HandlerFunc {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
-func stockOut(db *sql.DB, productID int, quantity int, reason string) error {
-	if quantity <= 0 {
-		return errors.New("stock-out quantity must be greater than 0")
-	}
-
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	result, err := tx.Exec(`
-		UPDATE products
-		SET quantity = quantity - $1
-		WHERE id = $2
-		  AND quantity >= $1
-	`, quantity, productID)
-
-	if err != nil {
-
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-
-		return err
-	}
-
-	if rowsAffected == 0 {
-
-		return sql.ErrNoRows
-	}
-
-	_, err = tx.Exec(`
-		INSERT INTO stock_movements
-		(product_id, type, quantity, reason)
-		VALUES ($1, $2, $3, $4)
-	`, productID, "OUT", quantity, reason)
-
-	if err != nil {
-
-		return err
-	}
-
-	return tx.Commit()
-}
 func stockOutHandler(stockService *service.StockService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -341,58 +295,15 @@ func stockOutHandler(stockService *service.StockService) http.HandlerFunc {
 	}
 }
 	
+func getStockMovements(
+	stockService *service.StockService,
+) http.HandlerFunc {
 
-func getStockMovementsFromDB(
-	db *sql.DB,
-	productID int,
-) ([]StockMovement, error) {
-
-	rows, err := db.Query(`
-		SELECT id, product_id, type, quantity, reason, created_at
-		FROM stock_movements
-		WHERE product_id = $1
-		ORDER BY created_at DESC
-	`, productID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var movements []StockMovement
-
-	for rows.Next() {
-		var movement StockMovement
-
-		err := rows.Scan(
-			&movement.ID,
-			&movement.ProductID,
-			&movement.Type,
-			&movement.Quantity,
-			&movement.Reason,
-			&movement.CreatedAt,
-		)
-
-		if err != nil {
-			return nil, err
-		}
-
-		movements = append(movements, movement)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return movements, nil
-}
-func getStockMovements(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		id, err := strconv.Atoi(r.PathValue("id"))
 		if err != nil {
-		helper.WriteJSONError(
+			helper.WriteJSONError(
 				w,
 				"Invalid product ID",
 				http.StatusBadRequest,
@@ -400,9 +311,9 @@ func getStockMovements(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		movements, err := getStockMovementsFromDB(db, id)
+		movements, err := stockService.GetStockMovements(id)
 		if err != nil {
-		helper.WriteJSONError(
+			helper.WriteJSONError(
 				w,
 				"Failed to get stock movements",
 				http.StatusInternalServerError,
@@ -411,7 +322,6 @@ func getStockMovements(db *sql.DB) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-
 		json.NewEncoder(w).Encode(movements)
 	}
 }
