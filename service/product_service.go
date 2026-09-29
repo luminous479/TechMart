@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/luminous479/TechMart/model"
 	repos "github.com/luminous479/TechMart/repository"
 )
@@ -22,21 +24,48 @@ func (s *ProductService) GetProducts() ([]model.Product, error) {
 		return nil, err
 	}
 
-	// Business rules can go here.
-
 	return products, nil
 }
 func (s *ProductService) GetProduct(id int) (*model.Product, error) {
 	return s.repo.GetProduct(id)
 }
-
-func (s *ProductService) UpdateProduct(id int, product model.Product) error {
-	return s.repo.UpdateProduct(id, product)
-}
 func (s *ProductService) CreateProduct(product model.Product,
 ) (int, error) {
+	if err := validateProduct(product); err != nil {
+		return 0, err
+	}
 	return s.repo.CreateProduct(product)
 }
+func (s *ProductService) UpdateProduct(
+	id int,
+	product model.Product,
+) error {
+	if err := validateProduct(product); err != nil {
+		return err
+	}
+
+	return s.repo.UpdateProduct(id, product)
+}
+
 func (s *ProductService) DeleteProduct(id int) error {
 	return s.repo.DeleteProduct(id)
+}
+func validateProduct(product model.Product) error {
+	if product.Name == "" {
+		return errors.New("product name is required")
+	}
+
+	if product.SKU == "" {
+		return errors.New("product SKU is required")
+	}
+
+	if product.Price <= 0 {
+		return errors.New("product price must be greater than 0")
+	}
+
+	if product.Quantity < 0 {
+		return errors.New("product quantity cannot be negative")
+	}
+
+	return nil
 }
