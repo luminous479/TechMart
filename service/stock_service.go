@@ -7,6 +7,7 @@ import (
 
 type StockRepository interface {
 	StockIn(productID int, quantity int, reason string) error
+	StockOut(productID int, quantity int, reason string) error
 }
 
 type StockService struct {
@@ -30,4 +31,20 @@ func (s *StockService) StockIn(
 	}
 
 	return s.repo.StockIn(productID, quantity, reason)
+}
+func (s *StockService) StockOut(
+	productID int,
+	quantity int,
+	reason string,
+) error {
+
+	if quantity <= 0 {
+		return errors.New("stock-out quantity must be greater than 0")
+	}
+
+	return s.repo.StockOut(
+		productID,
+		quantity,
+		reason,
+	)
 }

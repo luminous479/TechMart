@@ -91,7 +91,7 @@ func main() {
 	mux.HandleFunc("PUT /products/{id}", productHandler.UpdateProduct)
 	mux.HandleFunc("DELETE /products/{id}", productHandler.DeleteProduct)
 	mux.HandleFunc("POST /products/{id}/stock-in", stockInHandler(stockService))
-	mux.HandleFunc("POST /products/{id}/stock-out", stockOutHandler(db))
+	mux.HandleFunc("POST /products/{id}/stock-out", stockOutHandler(stockService))
 	mux.HandleFunc("GET /products/{id}/movements", getStockMovements(db))
 
 	fmt.Println("server is running at http://localhost:8080")
@@ -288,12 +288,12 @@ func stockOut(db *sql.DB, productID int, quantity int, reason string) error {
 
 	return tx.Commit()
 }
-func stockOutHandler(db *sql.DB) http.HandlerFunc {
+func stockOutHandler(stockService *service.StockService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		id, err := strconv.Atoi(r.PathValue("id"))
 		if err != nil {
-	helper.WriteJSONError(
+			helper.WriteJSONError(
 				w,
 				"Invalid product ID",
 				http.StatusBadRequest,
@@ -305,7 +305,7 @@ func stockOutHandler(db *sql.DB) http.HandlerFunc {
 
 		err = json.NewDecoder(r.Body).Decode(&request)
 		if err != nil {
-		helper.WriteJSONError(
+			helper.WriteJSONError(
 				w,
 				"Invalid request body",
 				http.StatusBadRequest,
@@ -313,8 +313,7 @@ func stockOutHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		err = stockOut(
-			db,
+		err = stockService.StockOut(
 			id,
 			request.Quantity,
 			request.Reason,
@@ -322,30 +321,27 @@ func stockOutHandler(db *sql.DB) http.HandlerFunc {
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-			helper.WriteJSONError(
+				helper.WriteJSONError(
 					w,
-					"Product not found or insufficient stock",
-					http.StatusBadRequest,
+					"Product not found",
+					http.StatusNotFound,
 				)
 				return
 			}
 
-		helper.WriteJSONError(
+			helper.WriteJSONError(
 				w,
-				"Failed to process stock-out",
-				http.StatusInternalServerError,
+				err.Error(),
+				http.StatusBadRequest,
 			)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
-		json.NewEncoder(w).Encode(map[string]string{
-			"message": "Stock removed successfully",
-		})
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
+	
+
 func getStockMovementsFromDB(
 	db *sql.DB,
 	productID int,
