@@ -11,6 +11,7 @@ import (
 	"github.com/luminous479/TechMart/helper"
 	"github.com/luminous479/TechMart/model"
 	"github.com/luminous479/TechMart/service"
+	
 )
 
 type CreateProductRequest struct {
@@ -117,12 +118,14 @@ func (h *ProductHandler) CreateProduct(
 	}
 
 	id, err := h.service.CreateProduct(product)
+
 	if err != nil {
-		helper.WriteJSONError(
-			w,
-			err.Error(),
-			http.StatusBadRequest,
-		)
+		if helper.IsUniqueViolation(err) {
+			http.Error(w, "product with this SKU already exists", http.StatusConflict)
+			return
+		}
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -163,7 +166,6 @@ func (h *ProductHandler) UpdateProduct(
 		)
 		return
 	}
-
 
 	product := model.Product{
 		ID:       id,
