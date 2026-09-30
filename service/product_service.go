@@ -20,10 +20,12 @@ type ProductRepository interface {
 
 type ProductService struct {
 	repo ProductRepository
+	validator ProductValidator
 }
-func NewProductService(repo ProductRepository) *ProductService {
+func NewProductService(repo ProductRepository, validator ProductValidator) *ProductService {
 	return &ProductService{
 		repo: repo,
+		validator: validator,
 	}
 }
 func (s *ProductService) GetProducts() ([]model.Product, error) {
@@ -40,7 +42,7 @@ func (s *ProductService) GetProduct(id int) (*model.Product, error) {
 }
 func (s *ProductService) CreateProduct(product model.Product,
 ) (int, error) {
-	if err := validateProduct(product); err != nil {
+	if err := s.validator.validate(product); err != nil {
 		return 0, err
 	}
 
@@ -56,7 +58,7 @@ func (s *ProductService) UpdateProduct(
 	id int,
 	product model.Product,
 ) error {
-	if err := validateProduct(product); err != nil {
+	if err := s.validator.validate(product); err != nil {
 		return err
 	}
 
@@ -66,22 +68,4 @@ func (s *ProductService) UpdateProduct(
 func (s *ProductService) DeleteProduct(id int) error {
 	return s.repo.DeleteProduct(id)
 }
-func validateProduct(product model.Product) error {
-	if product.Name == "" {
-		return errors.New("product name is required")
-	}
 
-	if product.SKU == "" {
-		return errors.New("product SKU is required")
-	}
-
-	if product.Price <= 0 {
-		return errors.New("product price must be greater than 0")
-	}
-
-	if product.Quantity < 0 {
-		return errors.New("product quantity cannot be negative")
-	}
-
-	return nil
-}

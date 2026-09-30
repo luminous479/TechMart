@@ -76,7 +76,13 @@ func main() {
 	fmt.Println("Connected to PostgreSQL")
 
 	productRepository := repo.NewProductRepository(db)
-	productService := service.NewProductService(productRepository)
+
+   productValidator := service.BasicProductValidator{}
+
+productService := service.NewProductService(
+	productRepository,
+	productValidator,
+)
 	productHandler := handler.NewProductHandler(productService)
 
 	stockrepo := repo.NewstockRepository(db)

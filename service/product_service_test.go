@@ -59,8 +59,9 @@ func (m *mockProductRepository) DeleteProduct(id int) error {
 }
 func TestProductService_CreateProduct(t *testing.T) {
 	repo := &mockProductRepository{}
+	productValidator := BasicProductValidator{}
 
-	service := NewProductService(repo)
+	service := NewProductService(repo,productValidator)
 
 	product := model.Product{
 		Name:     "Keyboard",
