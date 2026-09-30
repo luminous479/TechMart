@@ -76,17 +76,17 @@ func main() {
 	fmt.Println("Connected to PostgreSQL")
 
 	productRepository := repo.NewProductRepository(db)
-
-   productValidator := service.BasicProductValidator{}
-
-productService := service.NewProductService(
+    productValidator := service.BasicProductValidator{}
+    productService := service.NewProductService(
 	productRepository,
-	productValidator,
-)
+	productValidator,)
 	productHandler := handler.NewProductHandler(productService)
-
 	stockrepo := repo.NewstockRepository(db)
 	stockService := service.NewStockService(stockrepo)
+	userRepository := repo.NewUserRepository(db)
+	userService := service.NewUserService(userRepository)
+	userHandler := handler.NewUserHandler(userService)
+	
 
 
 	mux := http.NewServeMux()
@@ -99,6 +99,7 @@ productService := service.NewProductService(
 	mux.HandleFunc("POST /products/{id}/stock-in", stockInHandler(stockService))
 	mux.HandleFunc("POST /products/{id}/stock-out", stockOutHandler(stockService))
 	mux.HandleFunc("GET /products/{id}/movements", getStockMovements(stockService))
+	mux.HandleFunc("GET /users/{id}",userHandler.GetByID)
 
 	fmt.Println("server is running at http://localhost:8080")
 
