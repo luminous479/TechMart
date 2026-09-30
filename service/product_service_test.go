@@ -1,6 +1,7 @@
 package service
 
 import (
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -22,7 +23,7 @@ func (m *mockProductRepository) GetProduct(id int) (*model.Product, error) {
 		}
 	}
 
-	return nil, errors.New("product not found")
+	return nil, sql.ErrNoRows
 }
 
 func (m *mockProductRepository) CreateProduct(product model.Product) (int, error) {
